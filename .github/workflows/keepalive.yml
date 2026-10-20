@@ -1,0 +1,15 @@
+name: Mantener Supabase despierto
+on:
+  schedule:
+    - cron: "17 14 * * *"
+  workflow_dispatch:
+jobs:
+  ping:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Tocar la base
+        run: |
+          URL=$(grep -o 'SUPABASE_URL: *"[^"]*"' docs/config.js | cut -d'"' -f2)
+          KEY=$(grep -o 'SUPABASE_ANON_KEY: *"[^"]*"' docs/config.js | cut -d'"' -f2)
+          test -n "$URL" || { echo "config.js sin URL"; exit 1; }
+          curl -fsS --max-time 25 "$URL/rest/v1/ap_ping?select=ok" -H "apikey: $KEY" -H "Authorization: Bearer $KEY"

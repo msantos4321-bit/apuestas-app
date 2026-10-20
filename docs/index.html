@@ -1,0 +1,513 @@
+<!doctype html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="theme-color" content="#f5f6fa">
+<link rel="manifest" href="manifest.webmanifest">
+<link rel="icon" href="icon-192.png">
+<link rel="apple-touch-icon" href="icon-192.png">
+<title>Apuestas Tenis</title>
+<style>
+:root{
+  --bg:#f5f6fa; --card:#ffffff; --ink:#1c1c1e; --muted:#6b7280; --line:#e6e8ee;
+  --acc:#2563eb; --accsoft:#e8f0ff; --ok:#16a34a; --oksoft:#e7f6ec; --warn:#d97706; --warnsoft:#fff4e0;
+  --bad:#dc2626; --badsoft:#fdecec; --r:18px; --sh:0 1px 2px rgba(16,24,40,.06),0 4px 14px rgba(16,24,40,.05);
+}
+*{box-sizing:border-box;-webkit-tap-highlight-color:transparent}
+html,body{margin:0;background:var(--bg);color:var(--ink);font-family:-apple-system,BlinkMacSystemFont,"SF Pro Text","Segoe UI",Roboto,Helvetica,Arial,sans-serif;font-size:16px;line-height:1.35}
+body{padding-bottom:calc(76px + env(safe-area-inset-bottom))}
+header{position:sticky;top:0;z-index:5;background:rgba(245,246,250,.92);backdrop-filter:blur(12px);padding:calc(12px + env(safe-area-inset-top)) 18px 10px;display:flex;align-items:center;justify-content:space-between;border-bottom:1px solid var(--line)}
+header h1{font-size:21px;margin:0;letter-spacing:-.3px}
+.chip{display:inline-flex;align-items:center;gap:6px;font-size:12px;font-weight:600;padding:4px 10px;border-radius:99px;background:var(--accsoft);color:var(--acc)}
+.chip.warn{background:var(--warnsoft);color:var(--warn)} .chip.ok{background:var(--oksoft);color:var(--ok)} .chip.bad{background:var(--badsoft);color:var(--bad)} .chip.gray{background:#eef0f4;color:var(--muted)}
+main{padding:14px 16px;max-width:640px;margin:0 auto}
+.card{background:var(--card);border-radius:var(--r);box-shadow:var(--sh);padding:16px;margin-bottom:14px}
+.card h2{font-size:15px;margin:0 0 10px;color:var(--muted);font-weight:600;text-transform:uppercase;letter-spacing:.4px}
+.row{display:flex;align-items:center;justify-content:space-between;gap:10px}
+.muted{color:var(--muted)} .small{font-size:13px} .tiny{font-size:12px}
+.big{font-size:28px;font-weight:700;letter-spacing:-.5px}
+.pos{color:var(--ok)} .neg{color:var(--bad)}
+button{font:inherit;border:0;border-radius:14px;padding:13px 16px;font-weight:600;cursor:pointer;background:#eef0f4;color:var(--ink)}
+button.pri{background:var(--acc);color:#fff} button.ok{background:var(--ok);color:#fff} button.bad{background:var(--bad);color:#fff}
+button.ghost{background:transparent;color:var(--acc);padding:8px 10px} button.sm{padding:9px 12px;font-size:14px;border-radius:12px}
+button:disabled{opacity:.5}
+.btns{display:flex;gap:8px;flex-wrap:wrap;margin-top:12px} .btns>button{flex:1;min-width:100px}
+.pick{border-left:6px solid var(--ok)} .pick.amarillo{border-left-color:var(--warn)} .pick.rojo{border-left-color:var(--bad)}
+.pick .who{font-size:19px;font-weight:700;letter-spacing:-.3px}
+.callout{background:var(--accsoft);border-radius:14px;padding:12px 14px;margin:10px 0}
+.callout b{font-size:22px;color:var(--acc)}
+.grid{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+.stat{background:var(--card);border-radius:16px;box-shadow:var(--sh);padding:14px}
+.stat .v{font-size:23px;font-weight:700;letter-spacing:-.4px} .stat .l{font-size:12px;color:var(--muted);margin-top:2px}
+.seg{display:flex;background:#e9ebf1;border-radius:13px;padding:3px;margin-bottom:14px}
+.seg button{flex:1;background:transparent;padding:9px 6px;font-size:13px;border-radius:10px;color:var(--muted)} .seg button.on{background:#fff;color:var(--ink);box-shadow:var(--sh)}
+table{width:100%;border-collapse:collapse;font-size:14px} td,th{padding:8px 4px;border-bottom:1px solid var(--line);text-align:right} td:first-child,th:first-child{text-align:left} th{font-size:12px;color:var(--muted);font-weight:600}
+.bar{height:10px;background:#e9ebf1;border-radius:99px;overflow:hidden;margin:6px 0} .bar>i{display:block;height:100%;background:var(--acc);border-radius:99px}
+.bar.warn>i{background:var(--warn)} .bar.bad>i{background:var(--bad)}
+.bet{padding:12px 0;border-bottom:1px solid var(--line)} .bet:last-child{border-bottom:0}
+label{display:block;font-size:13px;color:var(--muted);margin:12px 0 4px;font-weight:600}
+input,select,textarea{width:100%;font:inherit;padding:12px 13px;border:1px solid var(--line);border-radius:12px;background:#fff;color:var(--ink)}
+input:focus,select:focus,textarea:focus{outline:2px solid var(--acc);border-color:transparent}
+nav{position:fixed;left:0;right:0;bottom:0;z-index:6;background:rgba(255,255,255,.94);backdrop-filter:blur(14px);border-top:1px solid var(--line);display:flex;padding:6px 6px calc(6px + env(safe-area-inset-bottom))}
+nav button{flex:1;background:transparent;padding:6px 2px;border-radius:12px;color:var(--muted);font-size:11px;font-weight:600;display:flex;flex-direction:column;align-items:center;gap:3px}
+nav button svg{width:24px;height:24px;stroke:currentColor;fill:none;stroke-width:1.8;stroke-linecap:round;stroke-linejoin:round} nav button.on{color:var(--acc)}
+.modal{position:fixed;inset:0;z-index:20;background:rgba(15,23,42,.45);display:flex;align-items:flex-end;justify-content:center}
+.sheet{background:#fff;width:100%;max-width:640px;border-radius:24px 24px 0 0;padding:20px 18px calc(20px + env(safe-area-inset-bottom));max-height:92vh;overflow:auto}
+.sheet h3{margin:0 0 4px;font-size:20px}
+.msg{padding:12px 14px;border-radius:14px;margin:10px 0;font-size:14px} .msg.ok{background:var(--oksoft);color:#166534} .msg.warn{background:var(--warnsoft);color:#92400e} .msg.bad{background:var(--badsoft);color:#991b1b} .msg.info{background:var(--accsoft);color:#1e40af}
+.spin{display:inline-block;width:16px;height:16px;border:2px solid #fff;border-top-color:transparent;border-radius:50%;animation:g .8s linear infinite;vertical-align:-3px;margin-right:6px} @keyframes g{to{transform:rotate(360deg)}}
+details{border-bottom:1px solid var(--line);padding:10px 0} summary{font-weight:600;cursor:pointer} details p{margin:8px 0 2px;color:#374151}
+.empty{text-align:center;color:var(--muted);padding:24px 8px}
+.toast{position:fixed;left:50%;transform:translateX(-50%);bottom:calc(92px + env(safe-area-inset-bottom));background:#111827;color:#fff;padding:11px 16px;border-radius:14px;font-size:14px;z-index:30;max-width:90%;box-shadow:var(--sh)}
+</style>
+</head>
+<body>
+<header><h1>Apuestas</h1><span id="estado" class="chip gray">...</span></header>
+<main id="main"></main>
+<nav id="nav"></nav>
+<script src="config.js"></script>
+<script>
+"use strict";
+/* ====================================================================
+   APUESTAS TENIS  --  app instalable (PWA).  Un solo archivo.
+   Guarda tus datos en TU Supabase; el motor de picks corre en la nube.
+   ==================================================================== */
+const CFG = window.APP_CONFIG || {};
+const VERSION = CFG.VERSION || "1.0.0";
+const TZ = "America/Tijuana";
+const CONECTADA = !!(CFG.SUPABASE_URL && CFG.SUPABASE_ANON_KEY);
+
+const S = {
+  tab: "hoy", demo: !CONECTADA || localStorage.getItem("ap_demo") === "1",
+  user: null, cfg: null, picks: [], apuestas: [], uso: null,
+  filtro: null, cargando: false, offline: false, ultima: null, buscando: false, msg: null, authPaso: "correo", authCorreo: "",
+};
+let sb = null;
+
+/* ---------------- utilidades ---------------- */
+const $ = (s, el = document) => el.querySelector(s);
+const esc = (t) => String(t ?? "").replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
+const money = (n) => (n < 0 ? "-" : "") + "$" + Math.abs(Number(n) || 0).toLocaleString("es-MX", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+const pct = (x, d = 1) => (x * 100).toFixed(d) + "%";
+const dia = (d = new Date()) => new Intl.DateTimeFormat("en-CA", { timeZone: TZ }).format(d);
+function cuotaTxt(c) {
+  c = Number(c); if (!c) return "-";
+  if (S.cfg && S.cfg.formato_momio === "americano") return c >= 2 ? "+" + Math.round((c - 1) * 100) : String(Math.round(-100 / (c - 1)));
+  return c.toFixed(2);
+}
+function cuando(iso) {
+  const d = new Date(iso); const ms = d - Date.now();
+  const hora = d.toLocaleString("es-MX", { timeZone: TZ, weekday: "short", day: "numeric", month: "short", hour: "2-digit", minute: "2-digit" });
+  if (ms > 0 && ms < 36e5 * 30) { const h = ms / 36e5; return hora + " (" + (h < 1 ? "en " + Math.round(h * 60) + " min" : "en " + h.toFixed(1) + " h") + ")"; }
+  return hora;
+}
+function toast(t) { const e = document.createElement("div"); e.className = "toast"; e.textContent = t; document.body.appendChild(e); setTimeout(() => e.remove(), 2800); }
+const sumar = (a, f) => a.reduce((s, x) => s + (Number(f(x)) || 0), 0);
+
+/* ---------------- demo ---------------- */
+function datosDemo() {
+  const h = (hrs) => new Date(Date.now() + hrs * 36e5).toISOString();
+  const picks = [
+    { id: 1, evento_id: "d1", jugador_a: "Jasmine Paolini", jugador_b: "Anhelina Kalinina", seleccion: "Jasmine Paolini", lado: "A", torneo: "WTA Ningbo", nivel: "WTA", superficie: "Hard", inicio: h(5), p_justa: 0.669, ref_fuente: "Pinnacle", cuota_min: 1.52, cuota_ref: 1.55, semaforo: "verde", estado: "activo", resultado: null },
+    { id: 2, evento_id: "d2", jugador_a: "Marie Bouzkova", jugador_b: "Iga Swiatek", seleccion: "Iga Swiatek", lado: "B", torneo: "WTA Ningbo", nivel: "WTA", superficie: "Hard", inicio: h(27), p_justa: 0.749, ref_fuente: "consenso (22 casas)", cuota_min: 1.36, cuota_ref: 1.37, semaforo: "amarillo", estado: "activo", resultado: null },
+    { id: 3, evento_id: "d3", jugador_a: "Tomas Machac", jugador_b: "Zangar Nurlanuly", seleccion: "Tomas Machac", lado: "A", torneo: "ATP Almaty", nivel: "ATP", superficie: "Hard", inicio: h(9), p_justa: 0.912, ref_fuente: "Pinnacle", cuota_min: 1.12, cuota_ref: 1.13, semaforo: "verde", estado: "activo", resultado: null },
+  ];
+  const ap = []; let id = 1; const base = Date.now();
+  const add = (modo, est, sel, cuota, monto, res, dd, conf, nivel) => ap.push({ id: id++, pick_id: null, fecha: new Date(base - dd * 864e5).toISOString(), inicio: new Date(base - dd * 864e5).toISOString(), jugador_a: sel, jugador_b: "Rival", seleccion: sel, torneo: "WTA/ATP", nivel, estrategia: est, modo, cuota, monto, resultado: res, pnl: res === "W" ? +(monto * (cuota - 1)).toFixed(2) : res === "L" ? -monto : res === "X" ? 0 : null, confianza: conf, p_justa: 0.6 });
+  const v3 = [["W", 1.48], ["L", 1.8], ["L", 2.4], ["W", 2.2], ["L", 3.1], ["L", 1.9], ["W", 1.6], ["L", 2.6], ["W", 1.75], ["L", 2.0], ["L", 3.3], ["W", 1.5]];
+  v3.forEach((x, i) => add("historico", "v3", "Jugador v3-" + (i + 1), x[1], 12 + (i % 4) * 2, x[0], 40 - i * 2, ["ALTA", "MEDIA", "BAJA"][i % 3], i % 3 ? "ATP" : "WTA"));
+  add("papel", "v4", "Iga Swiatek", 1.4, 20, "W", 6, "verde", "WTA"); add("papel", "v4", "Jannik Sinner", 1.25, 20, "W", 5, "verde", "ATP");
+  add("papel", "v4", "Coco Gauff", 1.55, 18, "L", 4, "amarillo", "WTA");
+  add("real", "v4", "Carlos Alcaraz", 1.3, 20, "W", 3, "verde", "ATP"); add("real", "v4", "Aryna Sabalenka", 1.45, 20, "W", 2, "verde", "WTA");
+  add("real", "v4", "Daniil Medvedev", 1.52, 18, "L", 1, "verde", "ATP");
+  ap.push({ id: id++, pick_id: 1, fecha: new Date().toISOString(), inicio: h(5), jugador_a: "Jasmine Paolini", jugador_b: "Anhelina Kalinina", seleccion: "Jasmine Paolini", torneo: "WTA Ningbo", nivel: "WTA", estrategia: "v4", modo: "real", cuota: 1.55, monto: 15, resultado: null, pnl: null, confianza: "verde", p_justa: 0.669 });
+  const cfg = { id: 1, banca_inicial: 1000, tope_apuesta_pct: 2, tope_dia_pct: 5, kelly_fraccion: 0.25, p_min: 0.55, p_max: 0.92, ev_min: 0.02, cuota_max: 3, horas_max: 24, busquedas_max_dia: 3, formato_momio: "decimal" };
+  return { cfg, picks, apuestas: ap.reverse(), uso: { dia: dia(), busquedas: 1, creditos_restantes: 438 } };
+}
+
+/* ---------------- conexion (Supabase) ---------------- */
+function cargarLib() {
+  return new Promise((res, rej) => {
+    if (window.supabase) return res();
+    const s = document.createElement("script"); s.src = "https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2";
+    s.onload = res; s.onerror = () => rej(new Error("No se pudo cargar la libreria (revisa tu internet)")); document.head.appendChild(s);
+  });
+}
+async function conectar() {
+  await cargarLib();
+  sb = window.supabase.createClient(CFG.SUPABASE_URL, CFG.SUPABASE_ANON_KEY, { auth: { persistSession: true, autoRefreshToken: true, detectSessionInUrl: true } });
+  const { data } = await sb.auth.getSession();
+  S.user = data.session ? data.session.user : null;
+  sb.auth.onAuthStateChange(async (_e, ses) => { const antes = !!S.user; S.user = ses ? ses.user : null; if (S.user && !antes) { await cargar(); render(); } });
+}
+function conLimite(ms, f) { const c = new AbortController(); const t = setTimeout(() => c.abort(), ms); return f(c.signal).finally(() => clearTimeout(t)); }
+function guardarCache() { try { localStorage.setItem("ap_cache", JSON.stringify({ t: Date.now(), cfg: S.cfg, picks: S.picks, apuestas: S.apuestas, uso: S.uso })); } catch (_) {} }
+function leerCache() { try { const c = JSON.parse(localStorage.getItem("ap_cache") || "null"); if (c) { Object.assign(S, { cfg: c.cfg, picks: c.picks || [], apuestas: c.apuestas || [], uso: c.uso, ultima: c.t }); return true; } } catch (_) {} return false; }
+
+async function cargar() {
+  S.cargando = true; render();
+  if (S.demo) { Object.assign(S, datosDemo(), { ultima: Date.now(), offline: false }); S.cargando = false; return; }
+  try {
+    const hace = new Date(Date.now() - 4 * 864e5).toISOString();
+    const r = await conLimite(25000, (sig) => Promise.all([
+      sb.from("ap_config").select("*").eq("id", 1).single().abortSignal(sig),
+      sb.from("ap_picks").select("*").gte("inicio", hace).order("inicio").abortSignal(sig),
+      sb.from("ap_apuestas").select("*").order("fecha", { ascending: false }).limit(1000).abortSignal(sig),
+      sb.from("ap_uso").select("*").eq("dia", dia()).maybeSingle().abortSignal(sig),
+    ]));
+    for (const x of r) if (x.error) throw new Error(x.error.message);
+    S.cfg = r[0].data; S.picks = r[1].data || []; S.apuestas = r[2].data || []; S.uso = r[3].data;
+    S.offline = false; S.ultima = Date.now(); guardarCache();
+  } catch (e) {
+    S.offline = true;
+    if (!S.cfg) leerCache();
+    if (!S.cfg) S.cfg = datosDemo().cfg;
+    S.msg = { t: "warn", m: "Sin conexion: mostrando lo ultimo guardado. (" + e.message + ")" };
+  }
+  S.cargando = false;
+}
+
+async function llamarMotor(accion) {
+  const { data } = await sb.auth.getSession();
+  const tok = data.session && data.session.access_token;
+  if (!tok) throw new Error("Tu sesion caduco. Inicia sesion otra vez.");
+  const c = new AbortController(); const t = setTimeout(() => c.abort(), 55000);
+  try {
+    const r = await fetch(CFG.SUPABASE_URL + "/functions/v1/motor", { method: "POST", signal: c.signal, headers: { "Content-Type": "application/json", Authorization: "Bearer " + tok, apikey: CFG.SUPABASE_ANON_KEY }, body: JSON.stringify({ accion }) });
+    const j = await r.json().catch(() => ({}));
+    if (!r.ok && !j.mensaje) throw new Error("El motor respondio " + r.status + (r.status === 404 ? " (falta publicar la funcion 'motor')" : ""));
+    return j;
+  } catch (e) { if (e.name === "AbortError") throw new Error("El motor tardo demasiado. Intenta de nuevo en un minuto."); throw e; }
+  finally { clearTimeout(t); }
+}
+
+/* ---------------- calculos ---------------- */
+function bancaReal() { const c = S.cfg || {}; return (Number(c.banca_inicial) || 0) + sumar(S.apuestas.filter((a) => a.modo === "real"), (a) => a.pnl); }
+function expuestoHoy() { const hoy = dia(); return sumar(S.apuestas.filter((a) => a.modo === "real" && dia(new Date(a.fecha)) === hoy), (a) => a.monto); }
+function stakeSugerido(p, cuota) {
+  const c = S.cfg, b = cuota - 1, q = 1 - p; if (b <= 0) return 0;
+  const f = (b * p - q) / b; if (f <= 0) return 0;
+  const banca = bancaReal();
+  return Math.round(banca * Math.min(f * Number(c.kelly_fraccion), Number(c.tope_apuesta_pct) / 100) * 100) / 100;
+}
+function stats(lista) {
+  const liq = lista.filter((a) => a.resultado === "W" || a.resultado === "L");
+  const w = liq.filter((a) => a.resultado === "W").length, pnl = sumar(liq, (a) => a.pnl), inv = sumar(liq, (a) => a.monto);
+  const orden = liq.slice().sort((a, b) => new Date(b.inicio || b.fecha) - new Date(a.inicio || a.fecha));
+  let racha = 0, tipo = ""; for (const a of orden) { if (!tipo) tipo = a.resultado; if (a.resultado === tipo) racha++; else break; }
+  return { n: liq.length, w, l: liq.length - w, acierto: liq.length ? w / liq.length : null, pnl, inv, yield: inv ? pnl / inv : null, racha, tipoRacha: tipo, pend: lista.filter((a) => !a.resultado).length };
+}
+function porClave(lista, clave) {
+  const m = {}; for (const a of lista) { if (a.resultado !== "W" && a.resultado !== "L") continue; const k = a[clave] || "Sin dato"; (m[k] = m[k] || []).push(a); }
+  return Object.entries(m).map(([k, v]) => ({ k, ...stats(v) })).sort((a, b) => b.n - a.n);
+}
+
+/* ---------------- "copiar para Claude" ---------------- */
+function resumenClaude() {
+  const L = ["# Segunda opinion de apuestas de tenis (" + new Date().toLocaleString("es-MX", { timeZone: TZ }) + ")", "",
+    "Eres mi segundo par de ojos. La app mide precio contra un mercado afilado (Pinnacle/consenso); NO ve noticias. Revisa cada partido buscando en la web: lesiones, retiros recientes, fatiga, superficie/condiciones, motivacion. Dame APOSTAR o PASAR por partido con una razon corta. Se honesto: si no hay ventaja clara, PASAR. Mi casa es Caliente (solo apuesto si paga al menos la cuota minima).", ""];
+  const real = stats(S.apuestas.filter((a) => a.modo === "real")), pap = stats(S.apuestas.filter((a) => a.modo === "papel"));
+  L.push("## Mi marcador", "- Real: " + real.n + " liquidadas, P&L " + money(real.pnl) + (real.yield !== null ? ", yield " + pct(real.yield) : ""), "- Papel (v4): " + pap.n + " liquidadas, P&L " + money(pap.pnl), "");
+  const ps = picksActivos(); L.push("## Picks de hoy");
+  if (!ps.length) L.push("- Ninguno por ahora.");
+  ps.forEach((p) => L.push("- " + p.seleccion + " (" + p.jugador_a + " vs " + p.jugador_b + ", " + p.torneo + ", " + p.superficie + ") | inicio " + cuando(p.inicio) + " | prob. justa " + pct(p.p_justa) + " (" + p.ref_fuente + ") | apostar solo si Caliente paga >= " + p.cuota_min.toFixed(2)));
+  return L.join("\n");
+}
+async function copiar(texto, ok) { try { await navigator.clipboard.writeText(texto); toast(ok || "Copiado. Pegalo en Claude."); } catch (_) { const t = document.createElement("textarea"); t.value = texto; document.body.appendChild(t); t.select(); try { document.execCommand("copy"); toast(ok || "Copiado."); } catch (e) { toast("No se pudo copiar"); } t.remove(); } }
+
+/* ---------------- acciones ---------------- */
+const picksActivos = () => S.picks.filter((p) => p.estado === "activo" && !p.resultado && new Date(p.inicio) > Date.now()).sort((a, b) => new Date(a.inicio) - new Date(b.inicio));
+const apuestaDe = (p) => S.apuestas.find((a) => a.pick_id === p.id);
+
+async function accionBuscar() {
+  if (S.buscando) return;
+  if (S.demo) { S.msg = { t: "info", m: "Demostracion: aqui el motor buscaria picks nuevos y liquidaria resultados." }; return render(); }
+  S.buscando = true; S.msg = null; render();
+  try {
+    const r = await llamarMotor("buscar");
+    if (!r.ok) S.msg = { t: r.error === "limite" ? "warn" : "bad", m: r.mensaje || "No se pudo buscar." };
+    else S.msg = { t: "ok", m: "Listo: " + r.partidos + " partidos revisados en " + r.torneos + " torneos, " + r.picks + " picks con valor potencial" + (r.liquidados ? ", " + r.liquidados + " resultado(s) liquidado(s)" : "") + "." };
+    await cargar();
+  } catch (e) { S.msg = { t: "bad", m: e.message }; reportar("buscar", e); }
+  S.buscando = false; render();
+}
+async function guardarApuesta(p, v) {
+  const fila = { pick_id: p.id, evento_id: p.evento_id, jugador_a: p.jugador_a, jugador_b: p.jugador_b, seleccion: p.seleccion, torneo: p.torneo, nivel: p.nivel, estrategia: p.estrategia || "v4", modo: v.modo, cuota: v.cuota, monto: v.monto, p_justa: p.p_justa, confianza: p.semaforo, inicio: p.inicio, origen: "app" };
+  if (S.demo) { S.apuestas.unshift({ ...fila, id: Date.now(), fecha: new Date().toISOString(), resultado: null, pnl: null }); return; }
+  const { error } = await sb.from("ap_apuestas").insert(fila); if (error) throw new Error(error.message);
+  await cargar();
+}
+async function marcarResultado(id, res) {
+  if (S.demo) { const a = S.apuestas.find((x) => x.id == id); a.resultado = res; a.pnl = res === "W" ? +(a.monto * (a.cuota - 1)).toFixed(2) : res === "L" ? -a.monto : 0; return; }
+  const { error } = await sb.from("ap_apuestas").update({ resultado: res }).eq("id", id); if (error) throw new Error(error.message);
+  await cargar();
+}
+async function borrarApuesta(id) {
+  if (S.demo) { S.apuestas = S.apuestas.filter((x) => x.id != id); return; }
+  const { error } = await sb.from("ap_apuestas").delete().eq("id", id); if (error) throw new Error(error.message);
+  await cargar();
+}
+async function pasarPick(p) {
+  if (S.demo) { p.estado = "pasado"; return; }
+  const { error } = await sb.from("ap_picks").update({ estado: "pasado" }).eq("id", p.id); if (error) throw new Error(error.message);
+  await cargar();
+}
+async function guardarCfg(patch) {
+  if (S.demo) { Object.assign(S.cfg, patch); return; }
+  const { error } = await sb.from("ap_config").update({ ...patch, actualizado: new Date().toISOString() }).eq("id", 1); if (error) throw new Error(error.message);
+  Object.assign(S.cfg, patch); guardarCache();
+}
+let ultimoReporte = 0;
+async function reportar(donde, e, extra) {
+  try {
+    const ahora = Date.now(); if (ahora - ultimoReporte < 10000) return; ultimoReporte = ahora;
+    if (S.demo || !sb) return;
+    await sb.from("ap_crash").insert({ version: VERSION, error: String((e && e.message) || e).slice(0, 400), detalle: (donde + " " + (extra || "") + " " + ((e && e.stack) || "")).slice(0, 1500) });
+  } catch (_) {}
+}
+window.addEventListener("error", (ev) => reportar("window.onerror", ev.error || ev.message));
+window.addEventListener("unhandledrejection", (ev) => reportar("promise", ev.reason));
+
+/* ---------------- vistas ---------------- */
+const ICON = {
+  hoy: '<svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/><path d="M5 7c4 1 7 4 7 10M19 7c-4 1-7 4-7 10"/></svg>',
+  historial: '<svg viewBox="0 0 24 24"><path d="M4 19V5M4 19h16"/><path d="M8 15l4-4 3 3 5-6"/></svg>',
+  banca: '<svg viewBox="0 0 24 24"><rect x="3" y="6" width="18" height="13" rx="3"/><path d="M3 11h18M16 15h2"/></svg>',
+  estrategias: '<svg viewBox="0 0 24 24"><path d="M5 5h14M5 12h14M5 19h14"/><circle cx="9" cy="5" r="2" fill="#fff"/><circle cx="15" cy="12" r="2" fill="#fff"/><circle cx="8" cy="19" r="2" fill="#fff"/></svg>',
+  ajustes: '<svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="3"/><path d="M19 12a7 7 0 0 0-.1-1.2l2-1.5-2-3.4-2.3.9a7 7 0 0 0-2-1.2L14 3h-4l-.6 2.6a7 7 0 0 0-2 1.2l-2.3-.9-2 3.4 2 1.5A7 7 0 0 0 5 12c0 .4 0 .8.1 1.2l-2 1.5 2 3.4 2.3-.9c.6.5 1.3.9 2 1.2L10 21h4l.6-2.6c.7-.3 1.4-.7 2-1.2l2.3.9 2-3.4-2-1.5c.1-.4.1-.8.1-1.2z"/></svg>',
+};
+const TABS = [["hoy", "Hoy"], ["historial", "Historial"], ["banca", "Banca"], ["estrategias", "Estrategias"], ["ajustes", "Ajustes"]];
+
+function msgHtml() { return S.msg ? '<div class="msg ' + S.msg.t + '">' + esc(S.msg.m) + "</div>" : ""; }
+
+function vistaHoy() {
+  const c = S.cfg, ps = picksActivos();
+  const max = Number(c.busquedas_max_dia), hechas = S.uso ? S.uso.busquedas : 0;
+  const exp = expuestoHoy(), banca = bancaReal(), topeDia = banca * Number(c.tope_dia_pct) / 100;
+  let h = msgHtml();
+  h += '<div class="card"><div class="row"><div><div class="muted small">Tu banca (real)</div><div class="big">' + money(banca) + '</div></div><div style="text-align:right"><div class="muted small">Hoy apostado</div><div style="font-weight:700">' + money(exp) + ' <span class="muted small">/ ' + money(topeDia) + '</span></div></div></div>';
+  h += '<div class="btns"><button class="pri" data-act="buscar" ' + (S.buscando ? "disabled" : "") + ">" + (S.buscando ? '<span class="spin"></span>Buscando...' : "Buscar picks ahora") + "</button></div>";
+  h += '<div class="tiny muted" style="margin-top:8px">Busquedas hoy: ' + hechas + "/" + max + (S.uso && S.uso.creditos_restantes != null ? " &middot; Creditos de TheOddsAPI: " + S.uso.creditos_restantes + "/500 al mes" : "") + "</div></div>";
+  if (!ps.length) {
+    h += '<div class="card empty"><div style="font-size:34px">&#127934;</div><b>No hay picks por ahora</b><p class="small">Es normal: Caliente casi siempre paga menos que el precio justo. Un pick aparece solo cuando hay un favorito claro y existe la posibilidad de que Caliente pague lo suficiente.</p></div>';
+  }
+  ps.forEach((p) => {
+    const ap = apuestaDe(p);
+    h += '<div class="card pick ' + esc(p.semaforo) + '"><div class="row"><span class="chip ' + (p.semaforo === "verde" ? "ok" : p.semaforo === "amarillo" ? "warn" : "bad") + '">' + (p.semaforo === "verde" ? "&#128994; Referencia sólida" : p.semaforo === "amarillo" ? "&#128993; Consenso" : "&#128308; Dudoso") + '</span><span class="tiny muted">' + esc(p.nivel) + " &middot; " + esc(p.superficie) + "</span></div>";
+    h += '<div class="who" style="margin-top:8px">' + esc(p.seleccion) + '</div><div class="small muted">' + esc(p.jugador_a) + " vs " + esc(p.jugador_b) + " &middot; " + esc(p.torneo) + "</div><div class=\"small\" style=\"margin-top:2px\">" + esc(cuando(p.inicio)) + "</div>";
+    h += '<div class="callout"><div class="small muted">Apuesta solo si Caliente paga</div><b>' + cuotaTxt(p.cuota_min) + '</b> <span class="small muted">o más</span><div class="tiny muted" style="margin-top:4px">Probabilidad justa ' + pct(p.p_justa) + " (" + esc(p.ref_fuente) + ")" + (p.cuota_ref ? " &middot; otras casas pagan hasta " + cuotaTxt(p.cuota_ref) + " (no aplica si no estás ahí)" : "") + "</div></div>";
+    if (ap) h += '<div class="msg ok">Ya la registraste: ' + money(ap.monto) + " a " + cuotaTxt(ap.cuota) + " (" + (ap.modo === "real" ? "real" : "papel") + ")</div>";
+    else h += '<div class="btns"><button class="ok" data-act="apostar" data-id="' + p.id + '">Ya aposté</button><button data-act="pasar" data-id="' + p.id + '">Pasar</button><button data-act="copiar1" data-id="' + p.id + '">Claude</button></div>';
+    h += "</div>";
+  });
+  if (ps.length) h += '<div class="btns"><button data-act="copiarTodo">Copiar todo para pedir segunda opinión a Claude</button></div>';
+  const pend = S.apuestas.filter((a) => !a.resultado && a.modo !== "historico");
+  if (pend.length) {
+    h += '<div class="card" style="margin-top:14px"><h2>Esperando resultado</h2>';
+    pend.forEach((a) => { h += '<div class="bet"><b>' + esc(a.seleccion) + '</b> <span class="muted small">' + money(a.monto) + " a " + cuotaTxt(a.cuota) + " &middot; " + esc(cuando(a.inicio || a.fecha)) + '</span><div class="btns" style="margin-top:8px"><button class="sm ok" data-act="res" data-r="W" data-id="' + a.id + '">Ganó</button><button class="sm bad" data-act="res" data-r="L" data-id="' + a.id + '">Perdió</button><button class="sm" data-act="res" data-r="X" data-id="' + a.id + '">Anular</button></div></div>'; });
+    h += "</div>";
+  }
+  return h;
+}
+
+function lineaPnl(lista) {
+  const liq = lista.filter((a) => a.resultado === "W" || a.resultado === "L").sort((a, b) => new Date(a.inicio || a.fecha) - new Date(b.inicio || b.fecha));
+  if (liq.length < 2) return "";
+  let acc = 0; const pts = [0].concat(liq.map((a) => (acc += Number(a.pnl) || 0)));
+  const W = 320, H = 110, mn = Math.min(...pts, 0), mx = Math.max(...pts, 0), rg = mx - mn || 1;
+  const x = (i) => (i / (pts.length - 1)) * (W - 8) + 4, y = (v) => H - 8 - ((v - mn) / rg) * (H - 16);
+  const d = pts.map((v, i) => (i ? "L" : "M") + x(i).toFixed(1) + " " + y(v).toFixed(1)).join(" ");
+  const col = acc >= 0 ? "#16a34a" : "#dc2626";
+  return '<svg viewBox="0 0 ' + W + " " + H + '" width="100%" style="margin-top:10px"><line x1="0" x2="' + W + '" y1="' + y(0).toFixed(1) + '" y2="' + y(0).toFixed(1) + '" stroke="#d1d5db" stroke-dasharray="4 4"/><path d="' + d + '" fill="none" stroke="' + col + '" stroke-width="2.5" stroke-linejoin="round"/></svg>';
+}
+
+function vistaHistorial() {
+  const cuentas = { real: S.apuestas.filter((a) => a.modo === "real"), papel: S.apuestas.filter((a) => a.modo === "papel"), historico: S.apuestas.filter((a) => a.modo === "historico"), todo: S.apuestas };
+  if (!S.filtro) S.filtro = cuentas.real.length ? "real" : cuentas.papel.length ? "papel" : cuentas.historico.length ? "historico" : "todo";
+  const lista = cuentas[S.filtro], s = stats(lista);
+  let h = msgHtml() + '<div class="seg">' + [["real", "Real"], ["papel", "Papel"], ["historico", "Antes (v3)"], ["todo", "Todo"]].map(([k, t]) => '<button class="' + (S.filtro === k ? "on" : "") + '" data-act="filtro" data-k="' + k + '">' + t + " (" + cuentas[k].length + ")</button>").join("") + "</div>";
+  h += '<div class="grid"><div class="stat"><div class="v ' + (s.pnl >= 0 ? "pos" : "neg") + '">' + money(s.pnl) + '</div><div class="l">Ganancia / pérdida</div></div>';
+  h += '<div class="stat"><div class="v ' + (s.yield >= 0 ? "pos" : "neg") + '">' + (s.yield === null ? "-" : pct(s.yield)) + '</div><div class="l">Rendimiento (yield)</div></div>';
+  h += '<div class="stat"><div class="v">' + (s.acierto === null ? "-" : pct(s.acierto, 0)) + '</div><div class="l">Acierto (' + s.w + " de " + s.n + ')</div></div>';
+  h += '<div class="stat"><div class="v">' + (s.racha ? s.racha + (s.tipoRacha === "W" ? " &#128994;" : " &#128308;") : "-") + '</div><div class="l">Racha actual</div></div></div>';
+  h += '<div class="card" style="margin-top:14px"><h2>Evolución</h2>' + (lineaPnl(lista) || '<div class="muted small">Necesito al menos 2 apuestas liquidadas.</div>') + "</div>";
+  const meta = Math.min(s.n / 100, 1);
+  h += '<div class="card"><h2>¿Ya es confiable?</h2><div class="small">' + s.n + " de 100 apuestas liquidadas</div><div class=\"bar" + (s.n < 100 ? " warn" : "") + '"><i style="width:' + (meta * 100) + '%"></i></div><div class="tiny muted">Con menos de 100 el resultado todavía es mayormente suerte. No cambies la estrategia por una racha.</div></div>';
+  const nv = porClave(lista, "nivel"), cf = porClave(lista, "confianza");
+  const tabla = (t, rows) => rows.length ? '<div class="card"><h2>' + t + "</h2><table><tr><th></th><th>Liq.</th><th>Acierto</th><th>P&amp;L</th></tr>" + rows.map((r) => "<tr><td>" + esc(r.k) + "</td><td>" + r.n + "</td><td>" + (r.acierto === null ? "-" : pct(r.acierto, 0)) + '</td><td class="' + (r.pnl >= 0 ? "pos" : "neg") + '">' + money(r.pnl) + "</td></tr>").join("") + "</table></div>" : "";
+  h += tabla("Por nivel de torneo", nv) + tabla("Por semáforo / confianza", cf);
+  h += '<div class="card"><h2>Apuestas (' + lista.length + ")</h2>";
+  if (!lista.length) h += '<div class="empty small">Aún no hay apuestas aquí.</div>';
+  lista.slice(0, 60).forEach((a) => {
+    const est = a.resultado === "W" ? '<span class="chip ok">Ganó ' + money(a.pnl) + "</span>" : a.resultado === "L" ? '<span class="chip bad">Perdió ' + money(a.pnl) + "</span>" : a.resultado === "X" ? '<span class="chip gray">Anulada</span>' : '<span class="chip warn">Pendiente</span>';
+    h += '<div class="bet"><div class="row"><b>' + esc(a.seleccion) + "</b>" + est + '</div><div class="tiny muted">' + money(a.monto) + " a " + cuotaTxt(a.cuota) + " &middot; " + esc(a.estrategia) + " &middot; " + new Date(a.fecha).toLocaleDateString("es-MX", { timeZone: TZ, day: "numeric", month: "short" }) + "</div>";
+    if (!a.resultado) h += '<div class="btns" style="margin-top:6px"><button class="sm ok" data-act="res" data-r="W" data-id="' + a.id + '">Ganó</button><button class="sm bad" data-act="res" data-r="L" data-id="' + a.id + '">Perdió</button><button class="sm" data-act="res" data-r="X" data-id="' + a.id + '">Anular</button></div>';
+    if (a.modo !== "historico") h += '<div style="text-align:right"><button class="ghost sm" data-act="borrar" data-id="' + a.id + '">Eliminar</button></div>';
+    h += "</div>";
+  });
+  return h + "</div>";
+}
+
+function vistaBanca() {
+  const c = S.cfg, banca = bancaReal(), exp = expuestoHoy(), topeDia = banca * Number(c.tope_dia_pct) / 100, uso = topeDia ? exp / topeDia : 0;
+  const real = stats(S.apuestas.filter((a) => a.modo === "real"));
+  let h = msgHtml() + '<div class="card"><div class="muted small">Banca actual (solo apuestas reales)</div><div class="big">' + money(banca) + '</div><div class="small ' + (real.pnl >= 0 ? "pos" : "neg") + '">' + money(real.pnl) + " desde los " + money(c.banca_inicial) + " iniciales</div></div>";
+  h += '<div class="card"><h2>Hoy</h2><div class="row"><span>Apostado</span><b>' + money(exp) + " / " + money(topeDia) + '</b></div><div class="bar ' + (uso >= 1 ? "bad" : uso >= 0.8 ? "warn" : "") + '"><i style="width:' + Math.min(uso, 1) * 100 + '%"></i></div>' + (uso >= 1 ? '<div class="msg bad">Llegaste al tope diario. Por hoy, a descansar.</div>' : uso >= 0.8 ? '<div class="msg warn">Estás cerca del tope diario.</div>' : "") + "</div>";
+  h += '<div class="card"><h2>Topes y reglas</h2>';
+  h += '<label>Banca inicial ($)</label><input id="c_banca" type="number" inputmode="decimal" value="' + c.banca_inicial + '">';
+  h += '<label>Máximo por apuesta (% de la banca)</label><input id="c_tope" type="number" inputmode="decimal" step="0.1" value="' + c.tope_apuesta_pct + '">';
+  h += '<label>Máximo por día (% de la banca)</label><input id="c_dia" type="number" inputmode="decimal" step="0.5" value="' + c.tope_dia_pct + '">';
+  h += '<label>Fracción de Kelly (0.25 = prudente)</label><input id="c_kelly" type="number" inputmode="decimal" step="0.05" value="' + c.kelly_fraccion + '">';
+  h += '<label>Formato de momios</label><select id="c_fmt"><option value="decimal"' + (c.formato_momio === "decimal" ? " selected" : "") + '>Decimal (1.85)</option><option value="americano"' + (c.formato_momio === "americano" ? " selected" : "") + '>Americano (-118)</option></select>';
+  h += '<div class="btns"><button class="pri" data-act="guardarBanca">Guardar</button></div></div>';
+  h += '<div class="card small muted">La app nunca apuesta por ti ni mueve dinero. Te sugiere un monto con Kelly fraccionado y nunca mayor al tope; tú decides.</div>';
+  return h;
+}
+
+function vistaEstrategias() {
+  const c = S.cfg, v4 = stats(S.apuestas.filter((a) => a.estrategia === "v4")), v3 = stats(S.apuestas.filter((a) => a.estrategia === "v3"));
+  const card = (t, sub, s, extra) => '<div class="card"><div class="row"><b style="font-size:18px">' + t + "</b>" + extra + '</div><div class="small muted">' + sub + '</div><div class="grid" style="margin-top:10px"><div class="stat"><div class="v ' + (s.pnl >= 0 ? "pos" : "neg") + '">' + money(s.pnl) + '</div><div class="l">P&amp;L (' + s.n + ' liq.)</div></div><div class="stat"><div class="v">' + (s.yield === null ? "-" : pct(s.yield)) + '</div><div class="l">Yield · acierto ' + (s.acierto === null ? "-" : pct(s.acierto, 0)) + "</div></div></div></div>";
+  let h = msgHtml();
+  h += card("v4 · actual", "Probabilidad justa de Pinnacle o consenso; solo favoritos claros; se apuesta únicamente si Caliente paga la cuota mínima.", v4, '<span class="chip ok">En uso</span>');
+  h += card("v3 · anterior", "Mezclaba el mercado con Elo/forma y usaba la mejor cuota de otras casas. Sobreestimaba 9 puntos y se retiró.", v3, '<span class="chip gray">Retirada</span>');
+  h += '<div class="card"><h2>Reglas de la v4</h2>';
+  h += '<label>Probabilidad justa mínima (0.55 = favoritos)</label><input id="e_pmin" type="number" inputmode="decimal" step="0.01" value="' + c.p_min + '">';
+  h += '<label>Ventaja mínima exigida a Caliente (0.02 = 2%)</label><input id="e_ev" type="number" inputmode="decimal" step="0.01" value="' + c.ev_min + '">';
+  h += '<label>Cuota máxima</label><input id="e_cmax" type="number" inputmode="decimal" step="0.1" value="' + c.cuota_max + '">';
+  h += '<label>Horas hacia adelante</label><input id="e_h" type="number" inputmode="numeric" value="' + c.horas_max + '">';
+  h += '<label>Búsquedas máximas por día (cuida los 500 créditos/mes)</label><input id="e_bus" type="number" inputmode="numeric" value="' + c.busquedas_max_dia + '">';
+  h += '<div class="btns"><button class="pri" data-act="guardarEstrategia">Guardar reglas</button></div></div>';
+  h += '<div class="card small"><b>Cómo decide la app</b><p class="muted">1) Consulta el precio de Pinnacle y le quita el margen: esa es la probabilidad justa. 2) Si un favorito pasa del mínimo, calcula la cuota que Caliente debe pagar para que valga la pena. 3) Tú revisas Caliente: si paga eso o más, apuestas y lo registras. Cambiar reglas con pocas apuestas es sobreajuste: espera a tener 100.</p></div>';
+  return h;
+}
+
+const AYUDA = [
+  ["¿Qué hace esta app?", "Busca partidos de tenis, calcula el precio justo con Pinnacle y te dice cuánto debe pagar Caliente para que valga la pena apostar. Tú apuestas en Caliente y aquí registras lo que hiciste."],
+  ["¿Por qué casi nunca hay picks?", "Porque Caliente cobra un margen alto. Solo hay valor cuando su cuota supera el precio justo; eso pasa pocas veces. Es mejor pasar que apostar sin ventaja."],
+  ["¿Cómo registro una apuesta?", "En Hoy, toca 'Ya aposté', escribe la cuota y el monto reales que viste en Caliente, y elige Real o Papel."],
+  ["¿Cómo se marcan los resultados?", "Al buscar picks, la app liquida sola los que TheOddsAPI ya terminó (últimos 3 días). Si no, toca Ganó, Perdió o Anular en la apuesta."],
+  ["¿Qué es el semáforo?", "Verde: la probabilidad viene de Pinnacle. Amarillo: viene del consenso de varias casas. Rojo: dudoso."],
+  ["¿Puedo usarla sin internet?", "Se abre y muestra lo último guardado, pero para buscar picks o guardar apuestas necesita internet."],
+  ["¿Cuántas búsquedas puedo hacer?", "Por defecto 3 al día para no gastar los 500 créditos mensuales gratis de TheOddsAPI."],
+  ["¿Y si algo falla?", "La app manda un reporte automático de fallas. También puedes tocar 'Reportar un problema' en Ajustes."],
+];
+function vistaAjustes() {
+  let h = msgHtml();
+  h += '<div class="card"><h2>Cuenta</h2><div class="small">' + (S.demo ? "Modo demostración (datos de ejemplo)" : esc(S.user ? S.user.email : "Sin sesión")) + "</div>";
+  h += '<div class="btns">' + (S.demo && CONECTADA ? '<button class="pri" data-act="salirDemo">Usar mis datos reales</button>' : "") + (S.demo ? "" : '<button data-act="salir">Cerrar sesión</button>') + (!S.demo ? '<button data-act="entrarDemo">Ver demostración</button>' : "") + "</div></div>";
+  h += '<div class="card"><h2>Datos</h2><div class="small muted">Última actualización: ' + (S.ultima ? new Date(S.ultima).toLocaleString("es-MX", { timeZone: TZ }) : "-") + '</div><div class="btns"><button data-act="recargar">Actualizar ahora</button><button data-act="copiarTodo">Copiar resumen para Claude</button>' + (window.__instalar ? '<button class="pri" data-act="instalar">Instalar app</button>' : "") + "</div></div>";
+  h += '<div class="card"><h2>Ayuda</h2>' + AYUDA.map(([q, a]) => "<details><summary>" + esc(q) + "</summary><p>" + esc(a) + "</p></details>").join("") + '<div class="btns"><button data-act="leer">&#128266; Leer la ayuda en voz alta</button><button data-act="falla">Reportar un problema</button></div></div>';
+  h += '<div class="card small"><h2>Límites gratis</h2><table><tr><td>TheOddsAPI</td><td>500 créditos/mes</td></tr><tr><td>Supabase</td><td>500 MB · se pausa a los 7 días sin uso (una tarea diaria lo evita)</td></tr><tr><td>GitHub Pages</td><td>Gratis para repos públicos</td></tr></table></div>';
+  h += '<div class="tiny muted" style="text-align:center">Apuestas Tenis v' + esc(VERSION) + "</div>";
+  return h;
+}
+
+function vistaLogin() {
+  let h = '<div class="card" style="margin-top:30px"><div style="font-size:42px;text-align:center">&#127934;</div><h2 style="text-align:center;text-transform:none;font-size:20px;color:var(--ink)">Entrar a Apuestas</h2>' + msgHtml();
+  if (S.authPaso === "correo") {
+    h += '<p class="small muted" style="text-align:center">Te mando un enlace y un código al correo. Sin contraseñas.</p><label>Tu correo</label><input id="a_mail" type="email" inputmode="email" autocomplete="email" value="' + esc(S.authCorreo) + '" placeholder="correo@ejemplo.com"><div class="btns"><button class="pri" data-act="enviarCodigo">Enviarme el acceso</button></div>';
+  } else {
+    h += '<p class="small muted" style="text-align:center">Revisa tu correo (' + esc(S.authCorreo) + '). Toca el enlace, o escribe aquí el código de 6 dígitos:</p><input id="a_cod" inputmode="numeric" maxlength="8" placeholder="123456" style="text-align:center;font-size:24px;letter-spacing:6px"><div class="btns"><button class="pri" data-act="verificarCodigo">Entrar</button><button data-act="otroCorreo">Cambiar correo</button></div>';
+  }
+  h += '<div class="btns" style="margin-top:18px"><button class="ghost" data-act="entrarDemo">Ver demostración sin entrar</button></div></div>';
+  return h;
+}
+
+function render() {
+  const main = $("#main"), nav = $("#nav"), est = $("#estado");
+  est.className = "chip " + (S.demo ? "warn" : S.offline ? "gray" : "ok");
+  est.textContent = S.demo ? "Demostración" : S.offline ? "Sin conexión" : S.cargando ? "Actualizando..." : "En línea";
+  if (!S.demo && !S.user) { nav.innerHTML = ""; main.innerHTML = vistaLogin(); return; }
+  if (!S.cfg) { main.innerHTML = '<div class="empty"><span class="spin" style="border-color:#2563eb;border-top-color:transparent"></span> Cargando...</div>'; nav.innerHTML = ""; return; }
+  const vistas = { hoy: vistaHoy, historial: vistaHistorial, banca: vistaBanca, estrategias: vistaEstrategias, ajustes: vistaAjustes };
+  try { main.innerHTML = vistas[S.tab](); } catch (e) { main.innerHTML = '<div class="msg bad">Algo falló al mostrar esta pantalla. Ya se reportó. (' + esc(e.message) + ")</div>"; reportar("render " + S.tab, e); }
+  nav.innerHTML = TABS.map(([k, t]) => '<button class="' + (S.tab === k ? "on" : "") + '" data-act="tab" data-k="' + k + '">' + ICON[k] + t + "</button>").join("");
+}
+
+/* ---------------- ventanas (modal) ---------------- */
+function modal(html) { const m = document.createElement("div"); m.className = "modal"; m.innerHTML = '<div class="sheet">' + html + "</div>"; m.addEventListener("click", (e) => { if (e.target === m) m.remove(); }); document.body.appendChild(m); return m; }
+function abrirApostar(p) {
+  const sug = stakeSugerido(p.p_justa, p.cuota_min);
+  const m = modal('<h3>Registrar apuesta</h3><div class="muted small">' + esc(p.seleccion) + " &middot; mínimo para valer: " + cuotaTxt(p.cuota_min) + '</div><label>Cuota que te paga Caliente (decimal)</label><input id="m_cuota" type="number" inputmode="decimal" step="0.01" value="' + p.cuota_min.toFixed(2) + '"><label>Monto apostado ($)</label><input id="m_monto" type="number" inputmode="decimal" step="0.5" value="' + (sug || "") + '"><label>Tipo</label><select id="m_modo"><option value="real">Real (dinero verdadero)</option><option value="papel">Papel (práctica)</option></select><div id="m_aviso"></div><div class="btns"><button class="ok" id="m_ok">Guardar</button><button id="m_no">Cancelar</button></div>');
+  const aviso = () => {
+    const cuota = parseFloat($("#m_cuota", m).value), monto = parseFloat($("#m_monto", m).value), banca = bancaReal(), c = S.cfg;
+    let t = "";
+    if (cuota > 1) { const ev = p.p_justa * cuota - 1; t += '<div class="msg ' + (ev >= Number(c.ev_min) ? "ok" : "bad") + '">' + (ev >= Number(c.ev_min) ? "Con esa cuota hay ventaja de " + pct(ev) + ". Vale la pena." : "Con esa cuota la ventaja es " + pct(ev) + ". No alcanza el mínimo: mejor pasar.") + "</div>"; }
+    if (monto > 0) {
+      if (monto > banca * Number(c.tope_apuesta_pct) / 100 + 0.001) t += '<div class="msg warn">Pasa tu tope por apuesta (' + money(banca * Number(c.tope_apuesta_pct) / 100) + ").</div>";
+      if (expuestoHoy() + monto > banca * Number(c.tope_dia_pct) / 100 + 0.001) t += '<div class="msg warn">Con esto pasarías tu tope diario (' + money(banca * Number(c.tope_dia_pct) / 100) + ").</div>";
+    }
+    $("#m_aviso", m).innerHTML = t;
+  };
+  m.addEventListener("input", aviso); aviso();
+  $("#m_no", m).onclick = () => m.remove();
+  $("#m_ok", m).onclick = async () => {
+    const cuota = parseFloat($("#m_cuota", m).value), monto = parseFloat($("#m_monto", m).value);
+    if (!(cuota > 1) || !(monto > 0)) return toast("Escribe cuota y monto válidos");
+    try { await guardarApuesta(p, { cuota, monto, modo: $("#m_modo", m).value }); m.remove(); toast("Apuesta registrada"); render(); } catch (e) { toast("No se pudo guardar: " + e.message); reportar("guardarApuesta", e); }
+  };
+}
+
+/* ---------------- eventos ---------------- */
+const num = (id) => parseFloat($(id).value);
+document.addEventListener("click", async (ev) => {
+  const b = ev.target.closest("[data-act]"); if (!b) return;
+  const act = b.dataset.act, id = b.dataset.id;
+  try {
+    if (act === "tab") { S.tab = b.dataset.k; S.msg = null; render(); window.scrollTo(0, 0); }
+    else if (act === "buscar") await accionBuscar();
+    else if (act === "apostar") abrirApostar(S.picks.find((p) => p.id == id));
+    else if (act === "pasar") { await pasarPick(S.picks.find((p) => p.id == id)); render(); }
+    else if (act === "copiar1") { const p = S.picks.find((x) => x.id == id); copiar(resumenClaude().split("## Picks de hoy")[0] + "## Partido a revisar\n- " + p.seleccion + " (" + p.jugador_a + " vs " + p.jugador_b + ", " + p.torneo + ") | prob. justa " + pct(p.p_justa) + " | apostar solo si Caliente paga >= " + p.cuota_min.toFixed(2)); }
+    else if (act === "copiarTodo") copiar(resumenClaude());
+    else if (act === "res") { await marcarResultado(id, b.dataset.r); render(); }
+    else if (act === "borrar") { if (confirm("¿Eliminar esta apuesta?")) { await borrarApuesta(id); render(); } }
+    else if (act === "filtro") { S.filtro = b.dataset.k; render(); }
+    else if (act === "guardarBanca") { await guardarCfg({ banca_inicial: num("#c_banca"), tope_apuesta_pct: num("#c_tope"), tope_dia_pct: num("#c_dia"), kelly_fraccion: num("#c_kelly"), formato_momio: $("#c_fmt").value }); S.msg = { t: "ok", m: "Guardado." }; render(); }
+    else if (act === "guardarEstrategia") { await guardarCfg({ p_min: num("#e_pmin"), ev_min: num("#e_ev"), cuota_max: num("#e_cmax"), horas_max: Math.round(num("#e_h")), busquedas_max_dia: Math.round(num("#e_bus")) }); S.msg = { t: "ok", m: "Reglas guardadas. Se usarán en la próxima búsqueda." }; render(); }
+    else if (act === "recargar") { await cargar(); render(); toast("Actualizado"); }
+    else if (act === "salir") { await sb.auth.signOut(); S.user = null; S.authPaso = "correo"; render(); }
+    else if (act === "entrarDemo") { S.demo = true; localStorage.setItem("ap_demo", "1"); await cargar(); render(); }
+    else if (act === "salirDemo") { S.demo = false; localStorage.removeItem("ap_demo"); S.cfg = null; await iniciar(); }
+    else if (act === "instalar") { window.__instalar.prompt(); window.__instalar = null; }
+    else if (act === "leer") { const u = new SpeechSynthesisUtterance(AYUDA.map(([q, a]) => q + " " + a).join(" ")); u.lang = "es-MX"; speechSynthesis.cancel(); speechSynthesis.speak(u); }
+    else if (act === "falla") { const t = prompt("¿Qué pasó?"); if (t) { ultimoReporte = 0; await reportar("manual", new Error(t)); toast("Gracias, quedó reportado"); } }
+    else if (act === "enviarCodigo") {
+      const mail = $("#a_mail").value.trim(); if (!mail.includes("@")) return toast("Escribe tu correo");
+      S.authCorreo = mail; b.disabled = true;
+      const { error } = await sb.auth.signInWithOtp({ email: mail, options: { emailRedirectTo: location.origin + location.pathname, shouldCreateUser: true } });
+      if (error) { S.msg = { t: "bad", m: error.message }; } else { S.msg = null; S.authPaso = "codigo"; }
+      render();
+    }
+    else if (act === "verificarCodigo") {
+      const { error } = await sb.auth.verifyOtp({ email: S.authCorreo, token: $("#a_cod").value.trim(), type: "email" });
+      if (error) { S.msg = { t: "bad", m: "Código incorrecto o vencido." }; render(); }
+    }
+    else if (act === "otroCorreo") { S.authPaso = "correo"; render(); }
+  } catch (e) { toast("Falló: " + e.message); reportar("click " + act, e); render(); }
+});
+
+window.addEventListener("beforeinstallprompt", (e) => { e.preventDefault(); window.__instalar = e; });
+window.addEventListener("online", () => { if (!S.demo) cargar().then(render); });
+
+/* ---------------- arranque ---------------- */
+async function iniciar() {
+  render();
+  if (!S.demo) {
+    try { await conectar(); } catch (e) { S.msg = { t: "bad", m: e.message }; if (leerCache()) { S.offline = true; } else { S.demo = false; render(); return; } }
+    if (!S.user && !S.offline) return render();
+  }
+  await cargar();
+  const h = location.hash.replace("#", ""); if (["hoy", "historial", "banca", "estrategias", "ajustes"].includes(h)) S.tab = h;
+  render();
+}
+if ("serviceWorker" in navigator && location.protocol.startsWith("http")) {
+  navigator.serviceWorker.register("sw.js").catch(() => {});
+  let recargado = false;
+  navigator.serviceWorker.addEventListener("controllerchange", () => { if (recargado || !navigator.serviceWorker.controller) return; });
+}
+iniciar();
+</script>
+</body>
+</html>
