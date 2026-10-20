@@ -154,3 +154,14 @@ create policy ap_pol_uso      on ap_uso      for select to authenticated using (
 create policy ap_pol_crash    on ap_crash    for insert to authenticated, anon with check (true);
 create policy ap_pol_ping     on ap_ping     for select to anon, authenticated using (true);
 -- ap_autorizados no tiene politicas: nadie la lee desde la app (solo el SQL Editor y el motor).
+
+-- Permisos de tabla (Supabase nuevo no los da solos)
+grant usage on schema public to anon, authenticated, service_role;
+grant select, insert, update, delete on ap_config, ap_apuestas to authenticated;
+grant select, update on ap_picks to authenticated;
+grant select on ap_uso to authenticated;
+grant insert on ap_crash to anon, authenticated;
+grant select on ap_ping to anon, authenticated;
+grant usage, select on all sequences in schema public to authenticated, service_role;
+grant execute on function ap_autorizado() to authenticated;
+grant all on ap_autorizados, ap_config, ap_picks, ap_apuestas, ap_uso, ap_crash, ap_ping to service_role;
