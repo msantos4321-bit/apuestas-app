@@ -184,7 +184,7 @@ async function llamarMotor(accion) {
 
 /* ---------------- calculos ---------------- */
 function bancaReal() { const c = S.cfg || {}; return (Number(c.banca_inicial) || 0) + sumar(S.apuestas.filter((a) => a.modo === "real"), (a) => a.pnl); }
-function expuestoHoy() { const hoy = dia(); return sumar(S.apuestas.filter((a) => a.modo === "real" && dia(new Date(a.fecha)) === hoy), (a) => a.monto); }
+function expuestoHoy() { const hoy = dia(); return sumar(S.apuestas.filter((a) => a.modo === "real" && a.resultado !== "X" && dia(new Date(a.fecha)) === hoy), (a) => a.monto); }
 function stakeSugerido(p, cuota) {
   const c = S.cfg, b = cuota - 1, q = 1 - p; if (b <= 0) return 0;
   const f = (b * p - q) / b; if (f <= 0) return 0;
@@ -243,6 +243,11 @@ async function marcarResultado(id, res) {
   const { error } = await sb.from("ap_apuestas").update({ resultado: res }).eq("id", id); if (error) throw new Error(error.message);
   await cargar();
 }
+async function editarApuesta(id, patch) {
+  if (S.demo) { const a = S.apuestas.find((x) => x.id == id); Object.assign(a, patch); a.pnl = a.resultado === "W" ? +(a.monto * (a.cuota - 1)).toFixed(2) : a.resultado === "L" ? -a.monto : a.resultado === "X" ? 0 : null; return; }
+  const { error } = await sb.from("ap_apuestas").update(patch).eq("id", id); if (error) throw new Error(error.message);
+  await cargar();
+}
 async function borrarApuesta(id) {
   if (S.demo) { S.apuestas = S.apuestas.filter((x) => x.id != id); return; }
   const { error } = await sb.from("ap_apuestas").delete().eq("id", id); if (error) throw new Error(error.message);
@@ -297,7 +302,7 @@ function vistaHoy() {
     h += '<div class="card pick ' + esc(p.semaforo) + '"><div class="row"><span class="chip ' + (p.semaforo === "verde" ? "ok" : p.semaforo === "amarillo" ? "warn" : "bad") + '">' + (p.semaforo === "verde" ? "&#128994; Referencia sólida" : p.semaforo === "amarillo" ? "&#128993; Consenso" : "&#128308; Dudoso") + '</span><span class="tiny muted">' + esc(p.nivel) + " &middot; " + esc(p.superficie) + "</span></div>";
     h += '<div class="who" style="margin-top:8px">' + esc(p.seleccion) + '</div><div class="small muted">' + esc(p.jugador_a) + " vs " + esc(p.jugador_b) + " &middot; " + esc(p.torneo) + "</div><div class=\"small\" style=\"margin-top:2px\">" + esc(cuando(p.inicio)) + "</div>";
     h += '<div class="callout"><div class="small muted">Apuesta solo si Caliente paga</div><b>' + cuotaTxt(p.cuota_min) + '</b> <span class="small muted">o más</span><div class="tiny muted" style="margin-top:4px">Probabilidad justa ' + pct(p.p_justa) + " (" + esc(p.ref_fuente) + ")" + (p.cuota_ref ? " &middot; otras casas pagan hasta " + cuotaTxt(p.cuota_ref) + " (no aplica si no estás ahí)" : "") + "</div></div>";
-    if (ap) h += '<div class="msg ok">Ya la registraste: ' + money(ap.monto) + " a " + cuotaTxt(ap.cuota) + " (" + (ap.modo === "real" ? "real" : "papel") + ")</div>";
+    if (ap) h += '<div class="msg ok">Ya la registraste: ' + money(ap.monto) + " a " + cuotaTxt(ap.cuota) + " (" + (ap.modo === "real" ? "real" : "papel") + ")" + (ap.resultado === "X" ? " &middot; anulada" : "") + '</div><div class="btns"><button class="sm" data-act="editar" data-id="' + ap.id + '">Editar</button><button class="sm" data-act="deshacer" data-id="' + ap.id + '">Deshacer registro</button></div>';
     else h += '<div class="btns"><button class="ok" data-act="apostar" data-id="' + p.id + '">Ya aposté</button><button data-act="pasar" data-id="' + p.id + '">Pasar</button><button data-act="copiar1" data-id="' + p.id + '">Claude</button></div>';
     h += "</div>";
   });
@@ -305,7 +310,7 @@ function vistaHoy() {
   const pend = S.apuestas.filter((a) => !a.resultado && a.modo !== "historico");
   if (pend.length) {
     h += '<div class="card" style="margin-top:14px"><h2>Esperando resultado</h2>';
-    pend.forEach((a) => { h += '<div class="bet"><b>' + esc(a.seleccion) + '</b> <span class="muted small">' + money(a.monto) + " a " + cuotaTxt(a.cuota) + " &middot; " + esc(cuando(a.inicio || a.fecha)) + '</span><div class="btns" style="margin-top:8px"><button class="sm ok" data-act="res" data-r="W" data-id="' + a.id + '">Ganó</button><button class="sm bad" data-act="res" data-r="L" data-id="' + a.id + '">Perdió</button><button class="sm" data-act="res" data-r="X" data-id="' + a.id + '">Anular</button></div></div>'; });
+    pend.forEach((a) => { h += '<div class="bet"><b>' + esc(a.seleccion) + '</b> <span class="chip ' + (a.modo === "real" ? "warn" : "gray") + '">' + (a.modo === "real" ? "Real" : "Papel") + '</span> <span class="muted small">' + money(a.monto) + " a " + cuotaTxt(a.cuota) + " &middot; " + esc(cuando(a.inicio || a.fecha)) + '</span><div class="btns" style="margin-top:8px"><button class="sm" data-act="editar" data-id="' + a.id + '">Editar</button><button class="sm ok" data-act="res" data-r="W" data-id="' + a.id + '">Ganó</button><button class="sm bad" data-act="res" data-r="L" data-id="' + a.id + '">Perdió</button><button class="sm" data-act="res" data-r="X" data-id="' + a.id + '">Anular</button></div></div>'; });
     h += "</div>";
   }
   return h;
@@ -343,7 +348,7 @@ function vistaHistorial() {
     const est = a.resultado === "W" ? '<span class="chip ok">Ganó ' + money(a.pnl) + "</span>" : a.resultado === "L" ? '<span class="chip bad">Perdió ' + money(a.pnl) + "</span>" : a.resultado === "X" ? '<span class="chip gray">Anulada</span>' : '<span class="chip warn">Pendiente</span>';
     h += '<div class="bet"><div class="row"><b>' + esc(a.seleccion) + "</b>" + est + '</div><div class="tiny muted">' + money(a.monto) + " a " + cuotaTxt(a.cuota) + " &middot; " + esc(a.estrategia) + " &middot; " + new Date(a.fecha).toLocaleDateString("es-MX", { timeZone: TZ, day: "numeric", month: "short" }) + "</div>";
     if (!a.resultado) h += '<div class="btns" style="margin-top:6px"><button class="sm ok" data-act="res" data-r="W" data-id="' + a.id + '">Ganó</button><button class="sm bad" data-act="res" data-r="L" data-id="' + a.id + '">Perdió</button><button class="sm" data-act="res" data-r="X" data-id="' + a.id + '">Anular</button></div>';
-    if (a.modo !== "historico") h += '<div style="text-align:right"><button class="ghost sm" data-act="borrar" data-id="' + a.id + '">Eliminar</button></div>';
+    if (a.modo !== "historico") h += '<div style="text-align:right"><button class="ghost sm" data-act="editar" data-id="' + a.id + '">Editar</button><button class="ghost sm" data-act="borrar" data-id="' + a.id + '">Eliminar</button></div>';
     h += "</div>";
   });
   return h + "</div>";
@@ -388,6 +393,7 @@ const AYUDA = [
   ["¿Cómo registro una apuesta?", "En Hoy, toca 'Ya aposté', escribe la cuota y el monto reales que viste en Caliente, y elige Real o Papel."],
   ["¿Cómo se marcan los resultados?", "Al buscar picks, la app liquida sola los que TheOddsAPI ya terminó (últimos 3 días). Si no, toca Ganó, Perdió o Anular en la apuesta."],
   ["¿Qué es el semáforo?", "Verde: la probabilidad viene de Pinnacle. Amarillo: viene del consenso de varias casas. Rojo: dudoso."],
+  ["¿Me equivoqué al registrar, cómo lo corrijo?", "Toca Editar en la apuesta (en Hoy o en Historial): puedes cambiar Real/Papel, cuota, monto o resultado. Si en realidad no apostaste, usa Deshacer registro y el partido vuelve a aparecer con Ya aposté."],
   ["¿Puedo usarla sin internet?", "Se abre y muestra lo último guardado, pero para buscar picks o guardar apuestas necesita internet."],
   ["¿Cuántas búsquedas puedo hacer?", "Por defecto 3 al día para no gastar los 500 créditos mensuales gratis de TheOddsAPI."],
   ["¿Y si algo falla?", "La app manda un reporte automático de fallas. También puedes tocar 'Reportar un problema' en Ajustes."],
@@ -449,6 +455,28 @@ function abrirApostar(p) {
   };
 }
 
+function abrirEditar(a) {
+  if (!a) return;
+  const sel = (v, t, cur) => '<option value="' + v + '"' + (cur === v ? " selected" : "") + ">" + t + "</option>";
+  const r = a.resultado || "";
+  const m = modal('<h3>Editar apuesta</h3><div class="muted small">' + esc(a.seleccion) + (a.jugador_b ? " &middot; " + esc(a.jugador_a) + " vs " + esc(a.jugador_b) : "") + '</div>' +
+    '<label>Tipo</label><select id="e_modo">' + sel("real", "Real (dinero verdadero)", a.modo) + sel("papel", "Papel (práctica)", a.modo) + "</select>" +
+    '<label>Cuota (decimal)</label><input id="e_cuota" type="number" inputmode="decimal" step="0.01" value="' + Number(a.cuota).toFixed(2) + '">' +
+    '<label>Monto ($)</label><input id="e_monto" type="number" inputmode="decimal" step="0.5" value="' + a.monto + '">' +
+    '<label>Resultado</label><select id="e_res">' + sel("", "Pendiente", r) + sel("W", "Ganó", r) + sel("L", "Perdió", r) + sel("X", "Anulada (no cuenta)", r) + "</select>" +
+    '<div class="tiny muted" style="margin-top:8px">Si te equivocaste de Real/Papel, cámbialo aquí: el marcador y la banca se corrigen solos.</div>' +
+    '<div class="btns"><button class="ok" id="e_ok">Guardar cambios</button><button id="e_no">Cancelar</button></div>' +
+    (a.pick_id ? '<div class="btns"><button class="bad" id="e_del">Deshacer registro (como si no hubieras apostado)</button></div>' : ""));
+  $("#e_no", m).onclick = () => m.remove();
+  $("#e_ok", m).onclick = async () => {
+    const cuota = parseFloat($("#e_cuota", m).value), monto = parseFloat($("#e_monto", m).value);
+    if (!(cuota > 1) || !(monto > 0)) return toast("Escribe cuota y monto válidos");
+    try { await editarApuesta(a.id, { modo: $("#e_modo", m).value, cuota, monto, resultado: $("#e_res", m).value || null }); m.remove(); toast("Cambios guardados"); render(); } catch (e) { toast("No se pudo guardar: " + e.message); reportar("editarApuesta", e); }
+  };
+  const del = $("#e_del", m);
+  if (del) del.onclick = async () => { if (!confirm("¿Quitar este registro? El partido vuelve a aparecer con 'Ya aposté'.")) return; try { await borrarApuesta(a.id); m.remove(); toast("Registro quitado"); render(); } catch (e) { toast("No se pudo: " + e.message); reportar("deshacer", e); } };
+}
+
 /* ---------------- eventos ---------------- */
 const num = (id) => parseFloat($(id).value);
 document.addEventListener("click", async (ev) => {
@@ -462,6 +490,8 @@ document.addEventListener("click", async (ev) => {
     else if (act === "copiar1") { const p = S.picks.find((x) => x.id == id); copiar(resumenClaude().split("## Picks de hoy")[0] + "## Partido a revisar\n- " + p.seleccion + " (" + p.jugador_a + " vs " + p.jugador_b + ", " + p.torneo + ") | prob. justa " + pct(p.p_justa) + " | apostar solo si Caliente paga >= " + p.cuota_min.toFixed(2)); }
     else if (act === "copiarTodo") copiar(resumenClaude());
     else if (act === "res") { await marcarResultado(id, b.dataset.r); render(); }
+    else if (act === "editar") abrirEditar(S.apuestas.find((a) => a.id == id));
+    else if (act === "deshacer") { if (confirm("¿Quitar este registro? El partido vuelve a aparecer con 'Ya aposté'.")) { await borrarApuesta(id); toast("Registro quitado"); render(); } }
     else if (act === "borrar") { if (confirm("¿Eliminar esta apuesta?")) { await borrarApuesta(id); render(); } }
     else if (act === "filtro") { S.filtro = b.dataset.k; render(); }
     else if (act === "guardarBanca") { await guardarCfg({ banca_inicial: num("#c_banca"), tope_apuesta_pct: num("#c_tope"), tope_dia_pct: num("#c_dia"), kelly_fraccion: num("#c_kelly"), formato_momio: $("#c_fmt").value }); S.msg = { t: "ok", m: "Guardado." }; render(); }
