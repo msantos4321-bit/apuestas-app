@@ -406,9 +406,9 @@ function vistaAjustes() {
 function vistaLogin() {
   let h = '<div class="card" style="margin-top:30px"><div style="font-size:42px;text-align:center">&#127934;</div><h2 style="text-align:center;text-transform:none;font-size:20px;color:var(--ink)">Entrar a Apuestas</h2>' + msgHtml();
   if (S.authPaso === "correo") {
-    h += '<p class="small muted" style="text-align:center">Te mando un enlace y un código al correo. Sin contraseñas.</p><label>Tu correo</label><input id="a_mail" type="email" inputmode="email" autocomplete="email" value="' + esc(S.authCorreo) + '" placeholder="correo@ejemplo.com"><div class="btns"><button class="pri" data-act="enviarCodigo">Enviarme el acceso</button></div>';
+    h += '<p class="small muted" style="text-align:center">Te mando un enlace al correo; tócalo y entras. Sin contraseñas.</p><label>Tu correo</label><input id="a_mail" type="email" inputmode="email" autocomplete="email" value="' + esc(S.authCorreo) + '" placeholder="correo@ejemplo.com"><div class="btns"><button class="pri" data-act="enviarCodigo">Enviarme el acceso</button></div>';
   } else {
-    h += '<p class="small muted" style="text-align:center">Revisa tu correo (' + esc(S.authCorreo) + '). Toca el enlace, o escribe aquí el código de 6 dígitos:</p><input id="a_cod" inputmode="numeric" maxlength="8" placeholder="123456" style="text-align:center;font-size:24px;letter-spacing:6px"><div class="btns"><button class="pri" data-act="verificarCodigo">Entrar</button><button data-act="otroCorreo">Cambiar correo</button></div>';
+    h += '<p class="small muted" style="text-align:center">Revisa tu correo (' + esc(S.authCorreo) + ') y toca el enlace (mira también en spam). Si tu correo trae un código, escríbelo aquí:</p><input id="a_cod" inputmode="numeric" maxlength="8" placeholder="123456" style="text-align:center;font-size:24px;letter-spacing:6px"><div class="btns"><button class="pri" data-act="verificarCodigo">Entrar</button><button data-act="otroCorreo">Cambiar correo</button></div>';
   }
   h += '<div class="btns" style="margin-top:18px"><button class="ghost" data-act="entrarDemo">Ver demostración sin entrar</button></div></div>';
   return h;
