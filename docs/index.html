@@ -331,7 +331,7 @@ function vistaHistorial() {
   const cuentas = { real: S.apuestas.filter((a) => a.modo === "real"), papel: S.apuestas.filter((a) => a.modo === "papel"), historico: S.apuestas.filter((a) => a.modo === "historico"), todo: S.apuestas };
   if (!S.filtro) S.filtro = cuentas.real.length ? "real" : cuentas.papel.length ? "papel" : cuentas.historico.length ? "historico" : "todo";
   const lista = cuentas[S.filtro], s = stats(lista);
-  let h = msgHtml() + '<div class="seg">' + [["real", "Real"], ["papel", "Papel"], ["historico", "Antes (v3)"], ["todo", "Todo"]].map(([k, t]) => '<button class="' + (S.filtro === k ? "on" : "") + '" data-act="filtro" data-k="' + k + '">' + t + " (" + cuentas[k].length + ")</button>").join("") + "</div>";
+  let h = msgHtml() + '<div class="seg">' + [["real", "Real"], ["papel", "Papel"], ["historico", "Antes (v3)"], ["todo", "Todo"]].filter(([k]) => k !== "historico" || cuentas.historico.length).map(([k, t]) => '<button class="' + (S.filtro === k ? "on" : "") + '" data-act="filtro" data-k="' + k + '">' + t + " (" + cuentas[k].length + ")</button>").join("") + "</div>";
   h += '<div class="grid"><div class="stat"><div class="v ' + (s.pnl >= 0 ? "pos" : "neg") + '">' + money(s.pnl) + '</div><div class="l">Ganancia / pérdida</div></div>';
   h += '<div class="stat"><div class="v ' + (s.yield >= 0 ? "pos" : "neg") + '">' + (s.yield === null ? "-" : pct(s.yield)) + '</div><div class="l">Rendimiento (yield)</div></div>';
   h += '<div class="stat"><div class="v">' + (s.acierto === null ? "-" : pct(s.acierto, 0)) + '</div><div class="l">Acierto (' + s.w + " de " + s.n + ')</div></div>';
@@ -375,7 +375,7 @@ function vistaEstrategias() {
   const card = (t, sub, s, extra) => '<div class="card"><div class="row"><b style="font-size:18px">' + t + "</b>" + extra + '</div><div class="small muted">' + sub + '</div><div class="grid" style="margin-top:10px"><div class="stat"><div class="v ' + (s.pnl >= 0 ? "pos" : "neg") + '">' + money(s.pnl) + '</div><div class="l">P&amp;L (' + s.n + ' liq.)</div></div><div class="stat"><div class="v">' + (s.yield === null ? "-" : pct(s.yield)) + '</div><div class="l">Yield · acierto ' + (s.acierto === null ? "-" : pct(s.acierto, 0)) + "</div></div></div></div>";
   let h = msgHtml();
   h += card("v4 · actual", "Probabilidad justa de Pinnacle o consenso; solo favoritos claros; se apuesta únicamente si Caliente paga la cuota mínima.", v4, '<span class="chip ok">En uso</span>');
-  h += card("v3 · anterior", "Mezclaba el mercado con Elo/forma y usaba la mejor cuota de otras casas. Sobreestimaba 9 puntos y se retiró.", v3, '<span class="chip gray">Retirada</span>');
+  if (v3.n || S.apuestas.some((a) => a.estrategia === "v3")) h += card("v3 · anterior", "Mezclaba el mercado con Elo/forma y usaba la mejor cuota de otras casas. Sobreestimaba 9 puntos y se retiró.", v3, '<span class="chip gray">Retirada</span>');
   h += '<div class="card"><h2>Reglas de la v4</h2>';
   h += '<label>Probabilidad justa mínima (0.55 = favoritos)</label><input id="e_pmin" type="number" inputmode="decimal" step="0.01" value="' + c.p_min + '">';
   h += '<label>Ventaja mínima exigida a Caliente (0.02 = 2%)</label><input id="e_ev" type="number" inputmode="decimal" step="0.01" value="' + c.ev_min + '">';
@@ -400,6 +400,8 @@ const AYUDA = [
 ];
 function vistaAjustes() {
   let h = msgHtml();
+  const nv3 = S.apuestas.filter((a) => a.modo === "historico").length;
+  if (nv3) h += '<div class="card"><h2>Estrategia anterior (v3)</h2><div class="small">Tienes ' + nv3 + ' apuestas del sistema anterior. Ya no se usan para nada de la estrategia actual.</div><div class="tiny muted" style="margin-top:6px">Al borrarlas, primero se descarga una copia (archivo CSV) por si algún día la quieres. Tus apuestas reales y de papel no se tocan.</div><div class="btns"><button class="bad" data-act="borrarV3">Borrar historial anterior</button></div></div>';
   h += '<div class="card"><h2>Cuenta</h2><div class="small">' + (S.demo ? "Modo demostración (datos de ejemplo)" : esc(S.user ? S.user.email : "Sin sesión")) + "</div>";
   h += '<div class="btns">' + (S.demo && CONECTADA ? '<button class="pri" data-act="salirDemo">Usar mis datos reales</button>' : "") + (S.demo ? "" : '<button data-act="salir">Cerrar sesión</button>') + (!S.demo ? '<button data-act="entrarDemo">Ver demostración</button>' : "") + "</div></div>";
   h += '<div class="card"><h2>Datos</h2><div class="small muted">Última actualización: ' + (S.ultima ? new Date(S.ultima).toLocaleString("es-MX", { timeZone: TZ }) : "-") + '</div><div class="btns"><button data-act="recargar">Actualizar ahora</button><button data-act="copiarTodo">Copiar resumen para Claude</button>' + (window.__instalar ? '<button class="pri" data-act="instalar">Instalar app</button>' : "") + "</div></div>";
@@ -492,6 +494,17 @@ document.addEventListener("click", async (ev) => {
     else if (act === "res") { await marcarResultado(id, b.dataset.r); render(); }
     else if (act === "editar") abrirEditar(S.apuestas.find((a) => a.id == id));
     else if (act === "deshacer") { if (confirm("¿Quitar este registro? El partido vuelve a aparecer con 'Ya aposté'.")) { await borrarApuesta(id); toast("Registro quitado"); render(); } }
+    else if (act === "borrarV3") {
+      const v3 = S.apuestas.filter((a) => a.modo === "historico"); if (!v3.length) return;
+      if (!confirm("Se descargará una copia y luego se borrarán " + v3.length + " apuestas del sistema anterior (v3). Esto no se puede deshacer en la app. ¿Continuar?")) return;
+      const cols = ["fecha", "seleccion", "jugador_a", "jugador_b", "torneo", "nivel", "estrategia", "cuota", "monto", "resultado", "pnl", "confianza", "notas"];
+      const csv = [cols.join(",")].concat(v3.map((a) => cols.map((k) => '"' + String(a[k] == null ? "" : a[k]).replace(/"/g, '""') + '"').join(","))).join("\n");
+      const url = URL.createObjectURL(new Blob(["\ufeff" + csv], { type: "text/csv" })); const ln = document.createElement("a"); ln.href = url; ln.download = "apuestas_v3_respaldo.csv"; document.body.appendChild(ln); ln.click(); ln.remove();
+      if (S.demo) S.apuestas = S.apuestas.filter((a) => a.modo !== "historico");
+      else { const { error } = await sb.from("ap_apuestas").delete().eq("modo", "historico"); if (error) throw new Error(error.message); await cargar(); }
+      if (S.filtro === "historico") S.filtro = null;
+      S.msg = { t: "ok", m: "Listo: historial anterior borrado (" + v3.length + " apuestas). La copia quedó en tus descargas." }; render();
+    }
     else if (act === "borrar") { if (confirm("¿Eliminar esta apuesta?")) { await borrarApuesta(id); render(); } }
     else if (act === "filtro") { S.filtro = b.dataset.k; render(); }
     else if (act === "guardarBanca") { await guardarCfg({ banca_inicial: num("#c_banca"), tope_apuesta_pct: num("#c_tope"), tope_dia_pct: num("#c_dia"), kelly_fraccion: num("#c_kelly"), formato_momio: $("#c_fmt").value }); S.msg = { t: "ok", m: "Guardado." }; render(); }
