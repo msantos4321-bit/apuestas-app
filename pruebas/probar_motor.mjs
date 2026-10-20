@@ -7,7 +7,7 @@ import { fileURLToPath } from "node:url";
 const dir = path.dirname(fileURLToPath(import.meta.url));
 const src = fs.readFileSync(path.join(dir, "..", "supabase", "functions", "motor", "index.ts"), "utf8");
 const core = src.split("\n// ==== HANDLER")[0] +
-  "\nexport { shin, probReferencia, construirPicks, ganadorDeScores, inferirNivel, inferirSuperficie };\n";
+  "\nexport { shin, probReferencia, construirPicks, ganadorDeScores, inferirNivel, inferirSuperficie, pinnacleDe, horaTijuana };\n";
 const tmp = path.join(dir, "_core_tmp.mjs");
 fs.writeFileSync(tmp, core);
 const m = await import("file://" + tmp.replace(/\\/g, "/"));
@@ -60,6 +60,16 @@ const fin = { completed: true, scores: [{ name: "Ana", score: "2" }, { name: "Be
 ok(m.ganadorDeScores(fin) === "Ana", "ganador por sets");
 ok(m.ganadorDeScores({ completed: false, scores: fin.scores }) === null, "no terminado");
 ok(m.ganadorDeScores({ completed: true, scores: [{ name: "Ana", score: "1" }, { name: "Bea", score: "1" }] }) === null, "empate raro -> sin dato");
+// 7) Cuota de cierre: precio de Pinnacle del jugador elegido
+{
+  const ev = { home_team: "Ana", away_team: "Bea", bookmakers: [bk("otra", "Ana", "Bea", 1.9, 1.9), bk("pinnacle", "Ana", "Bea", 1.5, 2.8)] };
+  const pin = m.pinnacleDe(ev, "Bea");
+  ok(pin && pin.cuota === 2.8 && pin.p > 0.3 && pin.p < 0.38, "cierre de Pinnacle para Bea (" + (pin && pin.p.toFixed(3)) + ")");
+  ok(m.pinnacleDe({ ...ev, bookmakers: [bk("otra", "Ana", "Bea", 1.9, 1.9)] }, "Ana") === null, "sin Pinnacle no hay cierre");
+  ok(m.horaTijuana(Date.parse("2026-10-20T15:05:00Z")) === 8, "15:05 UTC = 8 a.m. Tijuana (verano)");
+  ok(m.horaTijuana(Date.parse("2026-12-01T16:05:00Z")) === 8, "16:05 UTC = 8 a.m. Tijuana (invierno)");
+}
+
 
 console.log(fallos === 0 ? "\nTODO OK" : "\nHAY " + fallos + " FALLO(S)");
 process.exit(fallos ? 1 : 0);

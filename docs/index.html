@@ -121,6 +121,9 @@ function datosDemo() {
   add("papel", "v4", "Coco Gauff", 1.55, 18, "L", 4, "amarillo", "WTA");
   add("real", "v4", "Carlos Alcaraz", 1.3, 20, "W", 3, "verde", "ATP"); add("real", "v4", "Aryna Sabalenka", 1.45, 20, "W", 2, "verde", "WTA");
   add("real", "v4", "Daniil Medvedev", 1.52, 18, "L", 1, "verde", "ATP");
+  ap.forEach((a, i) => { if (a.modo !== "historico") { a.cuota_cierre = +(a.cuota - 0.04 + (i % 3) * 0.03).toFixed(2); a.p_cierre = +(1.02 / a.cuota_cierre).toFixed(4); } });
+  picks.push({ id: 4, evento_id: "d4", jugador_a: "Ana Vieja", jugador_b: "Bea", seleccion: "Ana Vieja", lado: "A", torneo: "WTA", nivel: "WTA", superficie: "Hard", inicio: h(-30), p_justa: 0.7, cuota_min: 1.46, estado: "liquidado", resultado: "W", claude_veredicto: "APOSTAR", claude_razon: "Rival lesionada" },
+    { id: 5, evento_id: "d5", jugador_a: "Cata", jugador_b: "Dina", seleccion: "Cata", lado: "A", torneo: "WTA", nivel: "WTA", superficie: "Hard", inicio: h(-28), p_justa: 0.65, cuota_min: 1.57, estado: "liquidado", resultado: "L", claude_veredicto: "PASAR", claude_razon: "Viene de retiro" });
   ap.push({ id: id++, pick_id: 1, fecha: new Date().toISOString(), inicio: h(5), jugador_a: "Jasmine Paolini", jugador_b: "Anhelina Kalinina", seleccion: "Jasmine Paolini", torneo: "WTA Ningbo", nivel: "WTA", estrategia: "v4", modo: "real", cuota: 1.55, monto: 15, resultado: null, pnl: null, confianza: "verde", p_justa: 0.669 });
   const cfg = { id: 1, banca_inicial: 1000, tope_apuesta_pct: 2, tope_dia_pct: 5, kelly_fraccion: 0.25, p_min: 0.55, p_max: 0.92, ev_min: 0.02, cuota_max: 3, horas_max: 24, busquedas_max_dia: 3, formato_momio: "decimal" };
   return { cfg, picks, apuestas: ap.reverse(), uso: { dia: dia(), busquedas: 1, creditos_restantes: 438 } };
@@ -204,15 +207,30 @@ function porClave(lista, clave) {
 }
 
 /* ---------------- "copiar para Claude" ---------------- */
-function resumenClaude() {
+const lineaPick = (p) => "- #" + p.id + " " + p.seleccion + " (" + p.jugador_a + " vs " + p.jugador_b + ", " + p.torneo + ", " + p.superficie + ") | inicio " + cuando(p.inicio) + " | prob. justa " + pct(p.p_justa) + " (" + p.ref_fuente + ") | apostar solo si Caliente paga >= " + p.cuota_min.toFixed(2);
+function resumenClaude(soloUno) {
   const L = ["# Segunda opinion de apuestas de tenis (" + new Date().toLocaleString("es-MX", { timeZone: TZ }) + ")", "",
     "Eres mi segundo par de ojos. La app mide precio contra un mercado afilado (Pinnacle/consenso); NO ve noticias. Revisa cada partido buscando en la web: lesiones, retiros recientes, fatiga, superficie/condiciones, motivacion. Dame APOSTAR o PASAR por partido con una razon corta. Se honesto: si no hay ventaja clara, PASAR. Mi casa es Caliente (solo apuesto si paga al menos la cuota minima).", ""];
   const real = stats(S.apuestas.filter((a) => a.modo === "real")), pap = stats(S.apuestas.filter((a) => a.modo === "papel"));
   L.push("## Mi marcador", "- Real: " + real.n + " liquidadas, P&L " + money(real.pnl) + (real.yield !== null ? ", yield " + pct(real.yield) : ""), "- Papel (v4): " + pap.n + " liquidadas, P&L " + money(pap.pnl), "");
-  const ps = picksActivos(); L.push("## Picks de hoy");
+  const ps = soloUno ? [soloUno] : picksActivos(); L.push(soloUno ? "## Partido a revisar" : "## Picks de hoy");
   if (!ps.length) L.push("- Ninguno por ahora.");
-  ps.forEach((p) => L.push("- " + p.seleccion + " (" + p.jugador_a + " vs " + p.jugador_b + ", " + p.torneo + ", " + p.superficie + ") | inicio " + cuando(p.inicio) + " | prob. justa " + pct(p.p_justa) + " (" + p.ref_fuente + ") | apostar solo si Caliente paga >= " + p.cuota_min.toFixed(2)));
+  ps.forEach((p) => L.push(lineaPick(p)));
+  if (ps.length) {
+    L.push("", "## Formato obligatorio al final de tu respuesta",
+      "Despues de tu analisis, termina SIEMPRE con un bloque de codigo que empiece con la palabra VEREDICTOS y tenga una linea por partido, usando el mismo numero # de arriba, asi:",
+      "```", "VEREDICTOS");
+    ps.forEach((p) => L.push("#" + p.id + " | APOSTAR o PASAR | razon en pocas palabras"));
+    L.push("```", "Incluye todos los partidos de la lista, sin cambiar los numeros. Yo copiare tu respuesta completa y la pegare en mi app con el boton 'Pegar opinion de Claude'; la app lee ese bloque y guarda cada veredicto sola.");
+  }
   return L.join("\n");
+}
+// Lee el bloque VEREDICTOS: lineas "#41 | APOSTAR | razon" (tolera ":" o "-" y texto alrededor).
+function leerVeredictos(texto) {
+  const t = String(texto || ""), i = t.toUpperCase().lastIndexOf("VEREDICTOS"), zona = i >= 0 ? t.slice(i) : t;
+  const out = {}, re = /#\s*(\d+)\b[^\n]*?\b(APOSTAR|PASAR)\b[ \t]*[|:\-–—]?[ \t]*([^\n]*)/gi;
+  let m; while ((m = re.exec(zona))) out[m[1]] = { veredicto: m[2].toUpperCase(), razon: m[3].replace(/[`*|]+/g, "").trim().slice(0, 300) };
+  return out;
 }
 async function copiar(texto, ok) { try { await navigator.clipboard.writeText(texto); toast(ok || "Copiado. Pegalo en Claude."); } catch (_) { const t = document.createElement("textarea"); t.value = texto; document.body.appendChild(t); t.select(); try { document.execCommand("copy"); toast(ok || "Copiado."); } catch (e) { toast("No se pudo copiar"); } t.remove(); } }
 
@@ -238,14 +256,20 @@ async function guardarApuesta(p, v) {
   const { error } = await sb.from("ap_apuestas").insert(fila); if (error) throw new Error(error.message);
   await cargar();
 }
+// Actualiza una apuesta; si la base aun no tiene la columna avisado_res (falta el paso 4), reintenta sin ella.
+async function actualizarApuesta(id, patch) {
+  let { error } = await sb.from("ap_apuestas").update({ ...patch, avisado_res: true }).eq("id", id);
+  if (error && /avisado_res/.test(error.message)) ({ error } = await sb.from("ap_apuestas").update(patch).eq("id", id));
+  if (error) throw new Error(error.message);
+}
 async function marcarResultado(id, res) {
   if (S.demo) { const a = S.apuestas.find((x) => x.id == id); a.resultado = res; a.pnl = res === "W" ? +(a.monto * (a.cuota - 1)).toFixed(2) : res === "L" ? -a.monto : 0; return; }
-  const { error } = await sb.from("ap_apuestas").update({ resultado: res }).eq("id", id); if (error) throw new Error(error.message);
+  await actualizarApuesta(id, { resultado: res });
   await cargar();
 }
 async function editarApuesta(id, patch) {
   if (S.demo) { const a = S.apuestas.find((x) => x.id == id); Object.assign(a, patch); a.pnl = a.resultado === "W" ? +(a.monto * (a.cuota - 1)).toFixed(2) : a.resultado === "L" ? -a.monto : a.resultado === "X" ? 0 : null; return; }
-  const { error } = await sb.from("ap_apuestas").update(patch).eq("id", id); if (error) throw new Error(error.message);
+  await actualizarApuesta(id, patch);
   await cargar();
 }
 async function borrarApuesta(id) {
@@ -302,11 +326,12 @@ function vistaHoy() {
     h += '<div class="card pick ' + esc(p.semaforo) + '"><div class="row"><span class="chip ' + (p.semaforo === "verde" ? "ok" : p.semaforo === "amarillo" ? "warn" : "bad") + '">' + (p.semaforo === "verde" ? "&#128994; Referencia sólida" : p.semaforo === "amarillo" ? "&#128993; Consenso" : "&#128308; Dudoso") + '</span><span class="tiny muted">' + esc(p.nivel) + " &middot; " + esc(p.superficie) + "</span></div>";
     h += '<div class="who" style="margin-top:8px">' + esc(p.seleccion) + '</div><div class="small muted">' + esc(p.jugador_a) + " vs " + esc(p.jugador_b) + " &middot; " + esc(p.torneo) + "</div><div class=\"small\" style=\"margin-top:2px\">" + esc(cuando(p.inicio)) + "</div>";
     h += '<div class="callout"><div class="small muted">Apuesta solo si Caliente paga</div><b>' + cuotaTxt(p.cuota_min) + '</b> <span class="small muted">o más</span><div class="tiny muted" style="margin-top:4px">Probabilidad justa ' + pct(p.p_justa) + " (" + esc(p.ref_fuente) + ")" + (p.cuota_ref ? " &middot; otras casas pagan hasta " + cuotaTxt(p.cuota_ref) + " (no aplica si no estás ahí)" : "") + "</div></div>";
+    if (p.claude_veredicto) h += '<div class="small" style="margin:6px 0"><span class="chip ' + (p.claude_veredicto === "APOSTAR" ? "ok" : "gray") + '">Claude: ' + (p.claude_veredicto === "APOSTAR" ? "APOSTAR" : "PASAR") + "</span> " + esc(p.claude_razon || "") + "</div>";
     if (ap) h += '<div class="msg ok">Ya la registraste: ' + money(ap.monto) + " a " + cuotaTxt(ap.cuota) + " (" + (ap.modo === "real" ? "real" : "papel") + ")" + (ap.resultado === "X" ? " &middot; anulada" : "") + '</div><div class="btns"><button class="sm" data-act="editar" data-id="' + ap.id + '">Editar</button><button class="sm" data-act="deshacer" data-id="' + ap.id + '">Deshacer registro</button></div>';
     else h += '<div class="btns"><button class="ok" data-act="apostar" data-id="' + p.id + '">Ya aposté</button><button data-act="pasar" data-id="' + p.id + '">Pasar</button><button data-act="copiar1" data-id="' + p.id + '">Claude</button></div>';
     h += "</div>";
   });
-  if (ps.length) h += '<div class="btns"><button data-act="copiarTodo">Copiar todo para pedir segunda opinión a Claude</button></div>';
+  if (ps.length) h += '<div class="card"><div class="small"><b>Segunda opinión de Claude</b></div><div class="tiny muted">1) Copia todo y pégalo en Claude. 2) Copia su respuesta completa. 3) Toca Pegar opinión: la app guarda cada veredicto sola.</div><div class="btns"><button data-act="copiarTodo">1 · Copiar todo para Claude</button><button class="pri" data-act="pegarClaude">3 · Pegar opinión de Claude</button></div></div>';
   const pend = S.apuestas.filter((a) => !a.resultado && a.modo !== "historico");
   if (pend.length) {
     h += '<div class="card" style="margin-top:14px"><h2>Esperando resultado</h2>';
@@ -316,15 +341,19 @@ function vistaHoy() {
   return h;
 }
 
+const evDe = (a) => (Number(a.p_justa) > 0 ? Number(a.monto) * (Number(a.p_justa) * Number(a.cuota) - 1) : 0);
+const clvDe = (a) => (Number(a.p_cierre) > 0 ? Number(a.cuota) * Number(a.p_cierre) - 1 : null);
 function lineaPnl(lista) {
   const liq = lista.filter((a) => a.resultado === "W" || a.resultado === "L").sort((a, b) => new Date(a.inicio || a.fecha) - new Date(b.inicio || b.fecha));
   if (liq.length < 2) return "";
-  let acc = 0; const pts = [0].concat(liq.map((a) => (acc += Number(a.pnl) || 0)));
-  const W = 320, H = 110, mn = Math.min(...pts, 0), mx = Math.max(...pts, 0), rg = mx - mn || 1;
+  let acc = 0, ace = 0; const pts = [0].concat(liq.map((a) => (acc += Number(a.pnl) || 0))), esp = [0].concat(liq.map((a) => (ace += evDe(a))));
+  const W = 320, H = 120, todos = pts.concat(esp), mn = Math.min(...todos, 0), mx = Math.max(...todos, 0), rg = mx - mn || 1;
   const x = (i) => (i / (pts.length - 1)) * (W - 8) + 4, y = (v) => H - 8 - ((v - mn) / rg) * (H - 16);
-  const d = pts.map((v, i) => (i ? "L" : "M") + x(i).toFixed(1) + " " + y(v).toFixed(1)).join(" ");
+  const path = (arr) => arr.map((v, i) => (i ? "L" : "M") + x(i).toFixed(1) + " " + y(v).toFixed(1)).join(" ");
   const col = acc >= 0 ? "#16a34a" : "#dc2626";
-  return '<svg viewBox="0 0 ' + W + " " + H + '" width="100%" style="margin-top:10px"><line x1="0" x2="' + W + '" y1="' + y(0).toFixed(1) + '" y2="' + y(0).toFixed(1) + '" stroke="#d1d5db" stroke-dasharray="4 4"/><path d="' + d + '" fill="none" stroke="' + col + '" stroke-width="2.5" stroke-linejoin="round"/></svg>';
+  return '<svg viewBox="0 0 ' + W + " " + H + '" width="100%" style="margin-top:10px"><line x1="0" x2="' + W + '" y1="' + y(0).toFixed(1) + '" y2="' + y(0).toFixed(1) + '" stroke="#d1d5db" stroke-dasharray="4 4"/><path d="' + path(esp) + '" fill="none" stroke="#2563eb" stroke-width="2" stroke-dasharray="6 4" stroke-linejoin="round"/><path d="' + path(pts) + '" fill="none" stroke="' + col + '" stroke-width="2.5" stroke-linejoin="round"/></svg>' +
+    '<div class="tiny" style="display:flex;gap:14px;margin-top:6px"><span><b style="color:' + col + '">━</b> Real ' + money(acc) + '</span><span><b style="color:#2563eb">┅</b> Esperado ' + money(ace) + "</span></div>" +
+    '<div class="tiny muted" style="margin-top:4px">' + (acc >= ace ? "Vas arriba de lo esperado: parte es suerte a favor." : "Vas abajo de lo esperado: parte es mala suerte; si la línea azul sube, el sistema sí tiene ventaja.") + "</div>";
 }
 
 function vistaHistorial() {
@@ -336,7 +365,9 @@ function vistaHistorial() {
   h += '<div class="stat"><div class="v ' + (s.yield >= 0 ? "pos" : "neg") + '">' + (s.yield === null ? "-" : pct(s.yield)) + '</div><div class="l">Rendimiento (yield)</div></div>';
   h += '<div class="stat"><div class="v">' + (s.acierto === null ? "-" : pct(s.acierto, 0)) + '</div><div class="l">Acierto (' + s.w + " de " + s.n + ')</div></div>';
   h += '<div class="stat"><div class="v">' + (s.racha ? s.racha + (s.tipoRacha === "W" ? " &#128994;" : " &#128308;") : "-") + '</div><div class="l">Racha actual</div></div></div>';
-  h += '<div class="card" style="margin-top:14px"><h2>Evolución</h2>' + (lineaPnl(lista) || '<div class="muted small">Necesito al menos 2 apuestas liquidadas.</div>') + "</div>";
+  const conCierre = lista.filter((a) => clvDe(a) !== null), clvProm = conCierre.length ? sumar(conCierre, clvDe) / conCierre.length : null, ganaCierre = conCierre.filter((a) => clvDe(a) > 0).length;
+  h += '<div class="card" style="margin-top:14px"><h2>Contra el cierre (CLV)</h2>' + (conCierre.length ? '<div class="row"><div><div class="big ' + (clvProm >= 0 ? "pos" : "neg") + '">' + pct(clvProm) + '</div><div class="tiny muted">ventaja promedio contra el precio final de Pinnacle</div></div><div style="text-align:right"><b>' + ganaCierre + " de " + conCierre.length + '</b><div class="tiny muted">le ganaste al cierre</div></div></div><div class="tiny muted" style="margin-top:6px">Es la mejor señal de que el sistema funciona: si es positiva de forma constante, ganarás a la larga aunque tengas rachas malas. Con 30 apuestas ya dice algo.</div>' : '<div class="small muted">Aún sin datos. La app guarda el último precio de Pinnacle antes de cada partido que apostaste (en las búsquedas de 8 a.m., 6 p.m. y las tuyas).</div>') + "</div>";
+  h += '<div class="card"><h2>Evolución</h2>' + (lineaPnl(lista) || '<div class="muted small">Necesito al menos 2 apuestas liquidadas.</div>') + "</div>";
   const meta = Math.min(s.n / 100, 1);
   h += '<div class="card"><h2>¿Ya es confiable?</h2><div class="small">' + s.n + " de 100 apuestas liquidadas</div><div class=\"bar" + (s.n < 100 ? " warn" : "") + '"><i style="width:' + (meta * 100) + '%"></i></div><div class="tiny muted">Con menos de 100 el resultado todavía es mayormente suerte. No cambies la estrategia por una racha.</div></div>';
   const nv = porClave(lista, "nivel"), cf = porClave(lista, "confianza");
@@ -346,7 +377,7 @@ function vistaHistorial() {
   if (!lista.length) h += '<div class="empty small">Aún no hay apuestas aquí.</div>';
   lista.slice(0, 60).forEach((a) => {
     const est = a.resultado === "W" ? '<span class="chip ok">Ganó ' + money(a.pnl) + "</span>" : a.resultado === "L" ? '<span class="chip bad">Perdió ' + money(a.pnl) + "</span>" : a.resultado === "X" ? '<span class="chip gray">Anulada</span>' : '<span class="chip warn">Pendiente</span>';
-    h += '<div class="bet"><div class="row"><b>' + esc(a.seleccion) + "</b>" + est + '</div><div class="tiny muted">' + money(a.monto) + " a " + cuotaTxt(a.cuota) + " &middot; " + esc(a.estrategia) + " &middot; " + new Date(a.fecha).toLocaleDateString("es-MX", { timeZone: TZ, day: "numeric", month: "short" }) + "</div>";
+    h += '<div class="bet"><div class="row"><b>' + esc(a.seleccion) + "</b>" + est + '</div><div class="tiny muted">' + money(a.monto) + " a " + cuotaTxt(a.cuota) + (clvDe(a) !== null ? " &middot; cierre " + cuotaTxt(a.cuota_cierre) + ' (<span class="' + (clvDe(a) >= 0 ? "pos" : "neg") + '">' + pct(clvDe(a)) + "</span>)" : "") + " &middot; " + esc(a.estrategia) + " &middot; " + new Date(a.fecha).toLocaleDateString("es-MX", { timeZone: TZ, day: "numeric", month: "short" }) + "</div>";
     if (!a.resultado) h += '<div class="btns" style="margin-top:6px"><button class="sm ok" data-act="res" data-r="W" data-id="' + a.id + '">Ganó</button><button class="sm bad" data-act="res" data-r="L" data-id="' + a.id + '">Perdió</button><button class="sm" data-act="res" data-r="X" data-id="' + a.id + '">Anular</button></div>';
     if (a.modo !== "historico") h += '<div style="text-align:right"><button class="ghost sm" data-act="editar" data-id="' + a.id + '">Editar</button><button class="ghost sm" data-act="borrar" data-id="' + a.id + '">Eliminar</button></div>';
     h += "</div>";
@@ -375,6 +406,10 @@ function vistaEstrategias() {
   const card = (t, sub, s, extra) => '<div class="card"><div class="row"><b style="font-size:18px">' + t + "</b>" + extra + '</div><div class="small muted">' + sub + '</div><div class="grid" style="margin-top:10px"><div class="stat"><div class="v ' + (s.pnl >= 0 ? "pos" : "neg") + '">' + money(s.pnl) + '</div><div class="l">P&amp;L (' + s.n + ' liq.)</div></div><div class="stat"><div class="v">' + (s.yield === null ? "-" : pct(s.yield)) + '</div><div class="l">Yield · acierto ' + (s.acierto === null ? "-" : pct(s.acierto, 0)) + "</div></div></div></div>";
   let h = msgHtml();
   h += card("v4 · actual", "Probabilidad justa de Pinnacle o consenso; solo favoritos claros; se apuesta únicamente si Caliente paga la cuota mínima.", v4, '<span class="chip ok">En uso</span>');
+  const cl = S.picks.filter((p) => p.claude_veredicto && (p.resultado === "W" || p.resultado === "L"));
+  const grupo = (v) => { const g = cl.filter((p) => p.claude_veredicto === v), w = g.filter((p) => p.resultado === "W").length, u = sumar(g, (p) => (p.resultado === "W" ? Number(p.cuota_min) - 1 : -1)); return { n: g.length, w, u }; };
+  const cA = grupo("APOSTAR"), cP = grupo("PASAR"), fila = (t, g) => "<tr><td>" + t + "</td><td>" + g.n + "</td><td>" + (g.n ? pct(g.w / g.n, 0) : "-") + '</td><td class="' + (g.u >= 0 ? "pos" : "neg") + '">' + (g.n ? (g.u >= 0 ? "+" : "") + g.u.toFixed(2) + " u" : "-") + "</td></tr>";
+  h += '<div class="card"><div class="row"><h2 style="margin:0">Filtro de Claude</h2><span class="chip">' + cl.length + ' revisados</span></div><div class="small muted" style="margin-top:6px">Todos los picks con opinión de Claude ya liquidados, apueste o no. "u" = unidades si hubieras apostado 1 a la cuota mínima.</div><table style="margin-top:8px"><tr><th></th><th>Picks</th><th>Acierto</th><th>Resultado</th></tr>' + fila("Claude dijo APOSTAR", cA) + fila("Claude dijo PASAR", cP) + '</table><div class="tiny muted" style="margin-top:6px">' + (cl.length < 30 ? "Con menos de 30 todavía no se puede juzgar." : cA.u > cP.u ? "Hasta ahora el filtro ayuda: los APOSTAR rinden más que los PASAR." : "Hasta ahora el filtro no ayuda: los PASAR rinden igual o más.") + "</div></div>";
   if (v3.n || S.apuestas.some((a) => a.estrategia === "v3")) h += card("v3 · anterior", "Mezclaba el mercado con Elo/forma y usaba la mejor cuota de otras casas. Sobreestimaba 9 puntos y se retiró.", v3, '<span class="chip gray">Retirada</span>');
   h += '<div class="card"><h2>Reglas de la v4</h2>';
   h += '<label>Probabilidad justa mínima (0.55 = favoritos)</label><input id="e_pmin" type="number" inputmode="decimal" step="0.01" value="' + c.p_min + '">';
@@ -393,6 +428,8 @@ const AYUDA = [
   ["¿Cómo registro una apuesta?", "En Hoy, toca 'Ya aposté', escribe la cuota y el monto reales que viste en Caliente, y elige Real o Papel."],
   ["¿Cómo se marcan los resultados?", "Al buscar picks, la app liquida sola los que TheOddsAPI ya terminó (últimos 3 días). Si no, toca Ganó, Perdió o Anular en la apuesta."],
   ["¿Qué es el semáforo?", "Verde: la probabilidad viene de Pinnacle. Amarillo: viene del consenso de varias casas. Rojo: dudoso."],
+  ["¿Cómo uso la opinión de Claude?", "En Hoy toca 'Copiar todo para Claude' y pégalo en Claude. Copia su respuesta completa (trae al final un bloque VEREDICTOS) y toca 'Pegar opinión de Claude'. La app guarda APOSTAR o PASAR en cada pick y en Estrategias te dice si el filtro de Claude está ayudando."],
+  ["¿Qué es la línea azul y el CLV?", "La línea azul punteada es lo que deberías llevar ganado según la ventaja de cada apuesta; la verde o roja es lo real. El CLV compara tu cuota con el precio final de Pinnacle: si le ganas al cierre seguido, el sistema funciona aunque tengas rachas malas."],
   ["¿Me equivoqué al registrar, cómo lo corrijo?", "Toca Editar en la apuesta (en Hoy o en Historial): puedes cambiar Real/Papel, cuota, monto o resultado. Si en realidad no apostaste, usa Deshacer registro y el partido vuelve a aparecer con Ya aposté."],
   ["¿Puedo usarla sin internet?", "Se abre y muestra lo último guardado, pero para buscar picks o guardar apuestas necesita internet."],
   ["¿Cuántas búsquedas puedo hacer?", "Por defecto 3 al día para no gastar los 500 créditos mensuales gratis de TheOddsAPI."],
@@ -400,6 +437,8 @@ const AYUDA = [
 ];
 function vistaAjustes() {
   let h = msgHtml();
+  const en = estadoNotif();
+  h += '<div class="card"><h2>Notificaciones</h2><div class="small">' + (en === "granted" ? "Activadas en este celular." : en === "denied" ? "Bloqueadas: actívalas en Ajustes del celular → Apps → Notificaciones." : en === "no" ? "Este navegador no las permite. Usa la app instalada en Chrome (Android)." : "Te aviso a las 8 a.m. y 6 p.m. si hay picks nuevos, y cuando se liquida un resultado.") + '</div><div class="tiny muted" style="margin-top:6px">La app busca sola a las 8 a.m. y 6 p.m. (hora de Tijuana). Eso no gasta tokens de Claude, solo créditos de TheOddsAPI, y no cuenta en tus búsquedas manuales.</div><div class="btns">' + (en === "granted" ? '<button data-act="notifPrueba">Enviar prueba</button><button data-act="notifOn">Volver a conectar</button>' : en === "no" || en === "denied" ? "" : '<button class="pri" data-act="notifOn">Activar notificaciones</button>') + "</div></div>";
   const nv3 = S.apuestas.filter((a) => a.modo === "historico").length;
   if (nv3) h += '<div class="card"><h2>Estrategia anterior (v3)</h2><div class="small">Tienes ' + nv3 + ' apuestas del sistema anterior. Ya no se usan para nada de la estrategia actual.</div><div class="tiny muted" style="margin-top:6px">Al borrarlas, primero se descarga una copia (archivo CSV) por si algún día la quieres. Tus apuestas reales y de papel no se tocan.</div><div class="btns"><button class="bad" data-act="borrarV3">Borrar historial anterior</button></div></div>';
   h += '<div class="card"><h2>Cuenta</h2><div class="small">' + (S.demo ? "Modo demostración (datos de ejemplo)" : esc(S.user ? S.user.email : "Sin sesión")) + "</div>";
@@ -479,6 +518,53 @@ function abrirEditar(a) {
   if (del) del.onclick = async () => { if (!confirm("¿Quitar este registro? El partido vuelve a aparecer con 'Ya aposté'.")) return; try { await borrarApuesta(a.id); m.remove(); toast("Registro quitado"); render(); } catch (e) { toast("No se pudo: " + e.message); reportar("deshacer", e); } };
 }
 
+function abrirPegarClaude() {
+  const m = modal('<h3>Pegar opinión de Claude</h3><div class="muted small">Copia la respuesta completa de Claude y pégala aquí. La app busca el bloque VEREDICTOS y guarda cada partido.</div><textarea id="c_txt" rows="9" placeholder="Pega aquí la respuesta de Claude"></textarea><div id="c_prev" class="small" style="margin-top:8px"></div><div class="btns"><button id="c_clip">Pegar del portapapeles</button><button class="ok" id="c_ok">Guardar opiniones</button><button id="c_no">Cancelar</button></div>');
+  const prev = () => {
+    const v = leerVeredictos($("#c_txt", m).value), ids = Object.keys(v);
+    const ok = ids.filter((i) => S.picks.some((p) => String(p.id) === i));
+    $("#c_prev", m).innerHTML = ids.length ? ok.map((i) => { const p = S.picks.find((x) => String(x.id) === i); return '<div><span class="chip ' + (v[i].veredicto === "APOSTAR" ? "ok" : "gray") + '">' + v[i].veredicto + "</span> " + esc(p.seleccion) + "</div>"; }).join("") + (ids.length > ok.length ? '<div class="msg warn">' + (ids.length - ok.length) + " partido(s) ya no están en la lista; los ignoro.</div>" : "") : (($("#c_txt", m).value.trim()) ? '<div class="msg warn">No encuentro el bloque VEREDICTOS. Asegúrate de copiar la respuesta completa.</div>' : "");
+  };
+  $("#c_txt", m).addEventListener("input", prev);
+  $("#c_clip", m).onclick = async () => { try { $("#c_txt", m).value = await navigator.clipboard.readText(); prev(); } catch (_) { toast("Tu celular no dejó leer el portapapeles: mantén presionado el cuadro y pega"); } };
+  $("#c_no", m).onclick = () => m.remove();
+  $("#c_ok", m).onclick = async () => {
+    const v = leerVeredictos($("#c_txt", m).value), ids = Object.keys(v).filter((i) => S.picks.some((p) => String(p.id) === i));
+    if (!ids.length) return toast("No encontré veredictos para los picks de la lista");
+    try {
+      const hora = new Date().toISOString();
+      for (const i of ids) {
+        const patch = { claude_veredicto: v[i].veredicto, claude_razon: v[i].razon, claude_fecha: hora };
+        if (S.demo) Object.assign(S.picks.find((p) => String(p.id) === i), patch);
+        else { const { error } = await sb.from("ap_picks").update(patch).eq("id", Number(i)); if (error) throw new Error(/claude_/.test(error.message) ? "Falta publicar la actualización de la base (paso de GitHub 'Publicar motor')." : error.message); }
+      }
+      if (!S.demo) await cargar();
+      const nA = ids.filter((i) => v[i].veredicto === "APOSTAR").length;
+      m.remove(); S.msg = { t: "ok", m: "Guardé " + ids.length + " opiniones de Claude: " + nA + " APOSTAR, " + (ids.length - nA) + " PASAR." }; render();
+    } catch (e) { toast("No se pudo guardar: " + e.message); reportar("pegarClaude", e); }
+  };
+}
+
+const b64aBytes = (b) => { const p = "=".repeat((4 - (b.length % 4)) % 4), r = atob((b + p).replace(/-/g, "+").replace(/_/g, "/")); return Uint8Array.from(r, (c) => c.charCodeAt(0)); };
+function estadoNotif() { if (!("Notification" in window) || !("serviceWorker" in navigator) || !("PushManager" in window)) return "no"; return Notification.permission; }
+async function activarNotificaciones() {
+  if (S.demo) return toast("En demostración no se activan notificaciones");
+  if (estadoNotif() === "no") return toast("Este navegador no permite notificaciones. Abre la app instalada en Chrome.");
+  const per = await Notification.requestPermission();
+  if (per !== "granted") { S.msg = { t: "warn", m: "No diste permiso. Puedes activarlo en Ajustes del celular → Apps → Chrome/Apuestas → Notificaciones." }; return render(); }
+  const r = await llamarMotor("vapid");
+  if (!r.ok || !r.publica) throw new Error(r.mensaje || "Falta publicar la actualización del motor (paso de GitHub 'Publicar motor').");
+  const reg = await navigator.serviceWorker.ready;
+  let sub = await reg.pushManager.getSubscription();
+  if (sub) { try { await sub.unsubscribe(); } catch (_) {} }
+  sub = await reg.pushManager.subscribe({ userVisibleOnly: true, applicationServerKey: b64aBytes(r.publica) });
+  const j = sub.toJSON();
+  const { error } = await sb.from("ap_push").upsert({ endpoint: j.endpoint, p256dh: j.keys.p256dh, auth: j.keys.auth, email: S.user && S.user.email }, { onConflict: "endpoint" });
+  if (error) throw new Error(error.message);
+  const t = await llamarMotor("prueba");
+  S.msg = { t: "ok", m: "Notificaciones activadas" + (t.ok ? ": te mandé una de prueba." : ".") }; render();
+}
+
 /* ---------------- eventos ---------------- */
 const num = (id) => parseFloat($(id).value);
 document.addEventListener("click", async (ev) => {
@@ -489,7 +575,10 @@ document.addEventListener("click", async (ev) => {
     else if (act === "buscar") await accionBuscar();
     else if (act === "apostar") abrirApostar(S.picks.find((p) => p.id == id));
     else if (act === "pasar") { await pasarPick(S.picks.find((p) => p.id == id)); render(); }
-    else if (act === "copiar1") { const p = S.picks.find((x) => x.id == id); copiar(resumenClaude().split("## Picks de hoy")[0] + "## Partido a revisar\n- " + p.seleccion + " (" + p.jugador_a + " vs " + p.jugador_b + ", " + p.torneo + ") | prob. justa " + pct(p.p_justa) + " | apostar solo si Caliente paga >= " + p.cuota_min.toFixed(2)); }
+    else if (act === "copiar1") copiar(resumenClaude(S.picks.find((x) => x.id == id)));
+    else if (act === "pegarClaude") abrirPegarClaude();
+    else if (act === "notifOn") await activarNotificaciones();
+    else if (act === "notifPrueba") { const r = await llamarMotor("prueba"); toast(r.mensaje || (r.ok ? "Enviada" : "No se pudo")); }
     else if (act === "copiarTodo") copiar(resumenClaude());
     else if (act === "res") { await marcarResultado(id, b.dataset.r); render(); }
     else if (act === "editar") abrirEditar(S.apuestas.find((a) => a.id == id));

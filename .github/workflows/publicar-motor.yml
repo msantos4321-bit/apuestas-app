@@ -1,0 +1,44 @@
+name: Publicar motor
+# Publica la funcion "motor" en Supabase y aplica los cambios de la base
+# (supabase/04_mejoras.sql). Corre solo cuando cambia algo en supabase/,
+# o a mano desde Actions -> Publicar motor -> Run workflow.
+# Necesita el secreto SUPABASE_ACCESS_TOKEN (Supabase -> Account -> Access Tokens).
+on:
+  push:
+    branches: [main]
+    paths: ["supabase/**"]
+  workflow_dispatch:
+concurrency: publicar-motor
+jobs:
+  publicar:
+    runs-on: ubuntu-latest
+    env:
+      SUPABASE_ACCESS_TOKEN: ${{ secrets.SUPABASE_ACCESS_TOKEN }}
+      REF: wnwecaapchcfhcljsvli
+    steps:
+      - uses: actions/checkout@v4
+      - name: Revisar el secreto
+        run: |
+          if [ -z "$SUPABASE_ACCESS_TOKEN" ]; then
+            echo "::error::Falta el secreto SUPABASE_ACCESS_TOKEN en GitHub (Settings -> Secrets and variables -> Actions)."
+            exit 1
+          fi
+      - name: Aplicar cambios de la base (04_mejoras.sql)
+        run: |
+          jq -Rs '{query: .}' supabase/04_mejoras.sql > /tmp/q.json
+          code=$(curl -sS -o /tmp/r.txt -w '%{http_code}' --max-time 60 \
+            -X POST "https://api.supabase.com/v1/projects/$REF/database/query" \
+            -H "Authorization: Bearer $SUPABASE_ACCESS_TOKEN" -H "Content-Type: application/json" \
+            --data @/tmp/q.json)
+          cat /tmp/r.txt; echo
+          test "$code" -ge 200 -a "$code" -lt 300 || { echo "::error::La base respondio $code"; exit 1; }
+      - uses: supabase/setup-cli@v1
+        with: { version: latest }
+      - name: Publicar la funcion motor
+        run: supabase functions deploy motor --project-ref "$REF" --no-verify-jwt --use-api
+      - name: Probar que responde
+        run: |
+          code=$(curl -s -o /dev/null -w '%{http_code}' --max-time 30 -X POST \
+            "https://$REF.supabase.co/functions/v1/motor" -H "Content-Type: application/json" -d '{"accion":"estado"}')
+          echo "motor respondio $code (401 = vivo y pidiendo sesion, correcto)"
+          test "$code" = "401"
