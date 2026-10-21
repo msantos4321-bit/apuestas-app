@@ -1,6 +1,6 @@
 # Estado de la app — Apuestas Tenis
 
-**Versión:** 1.1.0 · App: https://msantos4321-bit.github.io/apuestas-app/ · Base y motor: Supabase proyecto "cinecasa" (tablas `ap_*`, función `motor`).
+**Versión:** 1.2.1 · App: https://msantos4321-bit.github.io/apuestas-app/ · Base y motor: Supabase proyecto "cinecasa" (tablas `ap_*`, función `motor`).
 
 ## Qué hace hoy
 - Pantallas Hoy, Historial, Banca, Estrategias y Ajustes; modo demostración.
@@ -9,6 +9,8 @@
 - **Búsqueda automática** a las 8 a.m. y 6 p.m. hora de Tijuana (reloj `pg_cron` cada hora a :02; el motor solo actúa a esas horas). No cuenta en el límite manual. Si quedan < 40 créditos solo liquida.
 - **Notificaciones push** (Android/Chrome): picks nuevos y resultados liquidados. Llaves VAPID se generan solas y viven en `ap_privado` (solo el motor las lee).
 - **Opinión de Claude por lote**: "Copiar todo" incluye `#id` y pide a Claude terminar con un bloque `VEREDICTOS`; "Pegar opinión de Claude" lo lee y guarda en `ap_picks.claude_*`. Estrategias → "Filtro de Claude" compara APOSTAR vs PASAR.
+- Confianza de Claude (ALTA/MEDIA/BAJA) en el bloque `#id | APOSTAR/PASAR | confianza | razón`; BAJA = mitad del monto; aviso si Claude dijo PASAR. El texto copiado incluye el historial del filtro para que Claude se calibre.
+- Monto sugerido en cada tarjeta (Kelly 1/4, tope 2%, ajustado por Claude) y total del día contra el tope diario.
 - Historial: línea de ganancia **esperada vs real** y tarjeta **CLV**.
 - Borrar historial v3 con respaldo CSV (Ajustes).
 
