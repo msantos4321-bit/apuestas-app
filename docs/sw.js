@@ -1,5 +1,5 @@
 // Service worker: la app abre sin internet con lo ultimo guardado y se actualiza sola.
-const CACHE = "apuestas-v1.2.0";
+const CACHE = "apuestas-v1.2.1";
 const SHELL = ["./", "index.html", "config.js", "manifest.webmanifest", "icon-192.png", "icon-512.png"];
 
 self.addEventListener("install", (e) => {

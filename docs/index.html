@@ -188,6 +188,12 @@ async function llamarMotor(accion) {
 /* ---------------- calculos ---------------- */
 function bancaReal() { const c = S.cfg || {}; return (Number(c.banca_inicial) || 0) + sumar(S.apuestas.filter((a) => a.modo === "real"), (a) => a.pnl); }
 function expuestoHoy() { const hoy = dia(); return sumar(S.apuestas.filter((a) => a.modo === "real" && a.resultado !== "X" && dia(new Date(a.fecha)) === hoy), (a) => a.monto); }
+// Monto sugerido para un pick a una cuota dada: Kelly fraccionado, tope por apuesta, ajustado por Claude (PASAR = 0, BAJA = mitad)
+function montoPick(p, cuota) {
+  if (p.claude_veredicto === "PASAR") return 0;
+  const base = stakeSugerido(p.p_justa, cuota || p.cuota_min);
+  return p.claude_confianza === "BAJA" && p.claude_veredicto === "APOSTAR" ? Math.round(base * 50) / 100 : base;
+}
 function stakeSugerido(p, cuota) {
   const c = S.cfg, b = cuota - 1, q = 1 - p; if (b <= 0) return 0;
   const f = (b * p - q) / b; if (f <= 0) return 0;
@@ -335,12 +341,17 @@ function vistaHoy() {
     const ap = apuestaDe(p);
     h += '<div class="card pick ' + esc(p.semaforo) + '"><div class="row"><span class="chip ' + (p.semaforo === "verde" ? "ok" : p.semaforo === "amarillo" ? "warn" : "bad") + '">' + (p.semaforo === "verde" ? "&#128994; Referencia sólida" : p.semaforo === "amarillo" ? "&#128993; Consenso" : "&#128308; Dudoso") + '</span><span class="tiny muted">' + esc(p.nivel) + " &middot; " + esc(p.superficie) + "</span></div>";
     h += '<div class="who" style="margin-top:8px">' + esc(p.seleccion) + '</div><div class="small muted">' + esc(p.jugador_a) + " vs " + esc(p.jugador_b) + " &middot; " + esc(p.torneo) + "</div><div class=\"small\" style=\"margin-top:2px\">" + esc(cuando(p.inicio)) + "</div>";
-    h += '<div class="callout"><div class="small muted">Apuesta solo si Caliente paga</div><b>' + cuotaTxt(p.cuota_min) + '</b> <span class="small muted">o más</span><div class="tiny muted" style="margin-top:4px">Probabilidad justa ' + pct(p.p_justa) + " (" + esc(p.ref_fuente) + ")" + (p.cuota_ref ? " &middot; otras casas pagan hasta " + cuotaTxt(p.cuota_ref) + " (no aplica si no estás ahí)" : "") + "</div></div>";
+    const mp = montoPick(p);
+    h += '<div class="callout"><div class="row"><div><div class="small muted">Apuesta solo si Caliente paga</div><b>' + cuotaTxt(p.cuota_min) + '</b> <span class="small muted">o más</span></div><div style="text-align:right"><div class="small muted">Monto sugerido</div><b>' + (mp > 0 ? money(mp) : "$0") + "</b>" + '<div class="tiny muted">' + (p.claude_veredicto === "PASAR" ? "Claude dijo PASAR" : p.claude_confianza === "BAJA" && p.claude_veredicto === "APOSTAR" ? "mitad por confianza BAJA" : "a la cuota mínima") + '</div></div></div><div class="tiny muted" style="margin-top:4px">Probabilidad justa ' + pct(p.p_justa) + " (" + esc(p.ref_fuente) + ")" + (p.cuota_ref ? " &middot; otras casas pagan hasta " + cuotaTxt(p.cuota_ref) + " (no aplica si no estás ahí)" : "") + "</div></div>";
     if (p.claude_veredicto) h += '<div class="small" style="margin:6px 0"><span class="chip ' + (p.claude_veredicto === "APOSTAR" ? "ok" : "gray") + '">Claude: ' + (p.claude_veredicto === "APOSTAR" ? "APOSTAR" : "PASAR") + (p.claude_confianza ? " · " + esc(p.claude_confianza) : "") + "</span> " + esc(p.claude_razon || "") + "</div>";
     if (ap) h += '<div class="msg ok">Ya la registraste: ' + money(ap.monto) + " a " + cuotaTxt(ap.cuota) + " (" + (ap.modo === "real" ? "real" : "papel") + ")" + (ap.resultado === "X" ? " &middot; anulada" : "") + '</div><div class="btns"><button class="sm" data-act="editar" data-id="' + ap.id + '">Editar</button><button class="sm" data-act="deshacer" data-id="' + ap.id + '">Deshacer registro</button></div>';
     else h += '<div class="btns"><button class="ok" data-act="apostar" data-id="' + p.id + '">Ya aposté</button><button data-act="pasar" data-id="' + p.id + '">Pasar</button><button data-act="copiar1" data-id="' + p.id + '">Claude</button></div>';
     h += "</div>";
   });
+  if (ps.length) {
+    const libres = ps.filter((p) => !apuestaDe(p)), tot = sumar(libres, (p) => montoPick(p)), topeHoy = Math.max(0, topeDia - exp);
+    if (libres.length) h += '<div class="card small"><div class="row"><div>Si apuestas todas las sugeridas' + (S.picks.some((p) => p.claude_veredicto) ? " (sin las PASAR de Claude)" : "") + '</div><b>' + money(tot) + '</b></div><div class="tiny ' + (tot > topeHoy + 0.001 ? "neg" : "muted") + '" style="margin-top:4px">' + (tot > topeHoy + 0.001 ? "Pasa lo que te queda de tope hoy (" + money(topeHoy) + "): elige las de mayor confianza o baja montos." : "Te queda de tope hoy: " + money(topeHoy) + ". Si Caliente paga más que el mínimo, el monto sube un poco.") + "</div></div>";
+  }
   if (ps.length) h += '<div class="card"><div class="small"><b>Segunda opinión de Claude</b></div><div class="tiny muted">1) Copia todo y pégalo en Claude. 2) Copia su respuesta completa. 3) Toca Pegar opinión: la app guarda cada veredicto sola.</div><div class="btns"><button data-act="copiarTodo">1 · Copiar todo para Claude</button><button class="pri" data-act="pegarClaude">3 · Pegar opinión de Claude</button></div></div>';
   const pend = S.apuestas.filter((a) => !a.resultado && a.modo !== "historico");
   if (pend.length) {
@@ -484,8 +495,9 @@ function render() {
 /* ---------------- ventanas (modal) ---------------- */
 function modal(html) { const m = document.createElement("div"); m.className = "modal"; m.innerHTML = '<div class="sheet">' + html + "</div>"; m.addEventListener("click", (e) => { if (e.target === m) m.remove(); }); document.body.appendChild(m); return m; }
 function abrirApostar(p) {
-  const base = stakeSugerido(p.p_justa, p.cuota_min), baja = p.claude_veredicto === "APOSTAR" && p.claude_confianza === "BAJA";
-  const sug = baja ? Math.round(base * 50) / 100 : base;
+  const baja = p.claude_veredicto === "APOSTAR" && p.claude_confianza === "BAJA";
+  const sug = p.claude_veredicto === "PASAR" ? stakeSugerido(p.p_justa, p.cuota_min) : montoPick(p);
+  let montoTocado = false;
   const m = modal('<h3>Registrar apuesta</h3><div class="muted small">' + esc(p.seleccion) + " &middot; mínimo para valer: " + cuotaTxt(p.cuota_min) + '</div>' + (p.claude_veredicto === "PASAR" ? '<div class="msg warn">Claude dijo PASAR: ' + esc(p.claude_razon || "") + "</div>" : baja ? '<div class="msg info">Claude: confianza BAJA. Te sugiero la mitad del monto.</div>' : "") + '<label>Cuota que te paga Caliente (decimal)</label><input id="m_cuota" type="number" inputmode="decimal" step="0.01" value="' + p.cuota_min.toFixed(2) + '"><label>Monto apostado ($)</label><input id="m_monto" type="number" inputmode="decimal" step="0.5" value="' + (sug || "") + '"><label>Tipo</label><select id="m_modo"><option value="real">Real (dinero verdadero)</option><option value="papel">Papel (práctica)</option></select><div id="m_aviso"></div><div class="btns"><button class="ok" id="m_ok">Guardar</button><button id="m_no">Cancelar</button></div>');
   const aviso = () => {
     const cuota = parseFloat($("#m_cuota", m).value), monto = parseFloat($("#m_monto", m).value), banca = bancaReal(), c = S.cfg;
@@ -497,6 +509,8 @@ function abrirApostar(p) {
     }
     $("#m_aviso", m).innerHTML = t;
   };
+  $("#m_monto", m).addEventListener("input", () => { montoTocado = true; });
+  $("#m_cuota", m).addEventListener("input", () => { const c2 = parseFloat($("#m_cuota", m).value); if (!montoTocado && c2 > 1) { const v = p.claude_veredicto === "PASAR" ? stakeSugerido(p.p_justa, c2) : montoPick(p, c2); $("#m_monto", m).value = v > 0 ? v : ""; } });
   m.addEventListener("input", aviso); aviso();
   $("#m_no", m).onclick = () => m.remove();
   $("#m_ok", m).onclick = async () => {
