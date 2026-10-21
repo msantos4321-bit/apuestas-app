@@ -187,7 +187,7 @@ const CORS = {
 const json = (obj, status = 200) =>
   new Response(JSON.stringify(obj), { status, headers: { ...CORS, "Content-Type": "application/json" } });
 
-const HORAS_AUTO = [8, 18];      // busquedas automaticas (hora de Tijuana)
+const HORAS_AUTO = [8, 21];      // busquedas automaticas (hora de Tijuana)
 const CREDITOS_MIN_AUTO = 40;    // con menos creditos, la automatica solo liquida
 
 // Limite de tiempo para cada llamada de red (evita que algo se quede colgado).

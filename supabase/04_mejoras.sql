@@ -1,6 +1,6 @@
 -- ============================================================================
 -- APUESTAS -- paso 4 (v1.1): opinion de Claude, cuota de cierre (CLV),
--- notificaciones y busqueda automatica (8 a.m. y 6 p.m. hora de Tijuana).
+-- notificaciones y busqueda automatica (8 a.m. y 9 p.m. hora de Tijuana).
 -- Se puede ejecutar varias veces sin dano. Lo ejecuta solo el workflow
 -- "Publicar motor" de GitHub; tambien se puede pegar en el SQL Editor.
 -- ============================================================================
@@ -54,7 +54,7 @@ grant all on ap_privado to service_role;
 insert into ap_privado (clave, valor) values ('cron', replace(gen_random_uuid()::text, '-', '') || replace(gen_random_uuid()::text, '-', ''))
 on conflict (clave) do nothing;
 
--- Reloj: cada hora "toca" al motor; el motor solo busca a las 8 y a las 18
+-- Reloj: cada hora "toca" al motor; el motor solo busca a las 8 y a las 21
 -- hora de Tijuana (asi se ajusta solo al cambio de horario).
 create extension if not exists pg_cron;
 create extension if not exists pg_net;
