@@ -8,6 +8,9 @@
 -- Opinion de Claude por pick
 alter table ap_picks add column if not exists claude_veredicto text;
 alter table ap_picks add column if not exists claude_razon text;
+alter table ap_picks add column if not exists claude_confianza text;
+alter table ap_picks drop constraint if exists ap_picks_conf_chk;
+alter table ap_picks add constraint ap_picks_conf_chk check (claude_confianza is null or claude_confianza in ('ALTA','MEDIA','BAJA'));
 alter table ap_picks add column if not exists claude_fecha timestamptz;
 alter table ap_picks drop constraint if exists ap_picks_claude_chk;
 alter table ap_picks add constraint ap_picks_claude_chk check (claude_veredicto is null or claude_veredicto in ('APOSTAR','PASAR'));
