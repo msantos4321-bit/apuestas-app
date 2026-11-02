@@ -1,6 +1,6 @@
 # Estado de la app — Apuestas Tenis
 
-**Versión:** 1.2.2 · App: https://msantos4321-bit.github.io/apuestas-app/ · Base y motor: Supabase proyecto "cinecasa" (tablas `ap_*`, función `motor`).
+**Versión:** 1.2.3 · App: https://msantos4321-bit.github.io/apuestas-app/ · Base y motor: Supabase proyecto "cinecasa" (tablas `ap_*`, función `motor`).
 
 ## Qué hace hoy
 - Pantallas Hoy, Historial, Banca, Estrategias y Ajustes; modo demostración.

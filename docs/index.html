@@ -145,8 +145,8 @@ async function conectar() {
   sb.auth.onAuthStateChange(async (_e, ses) => { const antes = !!S.user; S.user = ses ? ses.user : null; if (S.user && !antes) { await cargar(); render(); } });
 }
 function conLimite(ms, f) { const c = new AbortController(); const t = setTimeout(() => c.abort(), ms); return f(c.signal).finally(() => clearTimeout(t)); }
-function guardarCache() { try { localStorage.setItem("ap_cache", JSON.stringify({ t: Date.now(), cfg: S.cfg, picks: S.picks, apuestas: S.apuestas, uso: S.uso })); } catch (_) {} }
-function leerCache() { try { const c = JSON.parse(localStorage.getItem("ap_cache") || "null"); if (c) { Object.assign(S, { cfg: c.cfg, picks: c.picks || [], apuestas: c.apuestas || [], uso: c.uso, ultima: c.t }); return true; } } catch (_) {} return false; }
+function guardarCache() { try { localStorage.setItem("ap_cache", JSON.stringify({ t: Date.now(), cfg: S.cfg, picks: S.picks, picksHist: S.picksHist, apuestas: S.apuestas, uso: S.uso })); } catch (_) {} }
+function leerCache() { try { const c = JSON.parse(localStorage.getItem("ap_cache") || "null"); if (c) { Object.assign(S, { cfg: c.cfg, picks: c.picks || [], picksHist: c.picksHist || null, apuestas: c.apuestas || [], uso: c.uso, ultima: c.t }); return true; } } catch (_) {} return false; }
 
 async function cargar() {
   S.cargando = true; render();
@@ -158,9 +158,10 @@ async function cargar() {
       sb.from("ap_picks").select("*").gte("inicio", hace).order("inicio").abortSignal(sig),
       sb.from("ap_apuestas").select("*").order("fecha", { ascending: false }).limit(1000).abortSignal(sig),
       sb.from("ap_uso").select("*").eq("dia", dia()).maybeSingle().abortSignal(sig),
+      sb.from("ap_picks").select("id, claude_veredicto, claude_confianza, resultado, cuota_min").not("claude_veredicto", "is", null).not("resultado", "is", null).limit(5000).abortSignal(sig),
     ]));
     for (const x of r) if (x.error) throw new Error(x.error.message);
-    S.cfg = r[0].data; S.picks = r[1].data || []; S.apuestas = r[2].data || []; S.uso = r[3].data;
+    S.cfg = r[0].data; S.picks = r[1].data || []; S.apuestas = r[2].data || []; S.uso = r[3].data; S.picksHist = r[4].data || null;
     S.offline = false; S.ultima = Date.now(); guardarCache();
   } catch (e) {
     S.offline = true;
@@ -216,7 +217,8 @@ function porClave(lista, clave) {
 const lineaPick = (p) => "- #" + p.id + " " + p.seleccion + " (" + p.jugador_a + " vs " + p.jugador_b + ", " + p.torneo + ", " + p.superficie + ") | inicio " + cuando(p.inicio) + " | prob. justa " + pct(p.p_justa) + " (" + p.ref_fuente + ") | apostar solo si Caliente paga >= " + p.cuota_min.toFixed(2) + (apuestaDe(p) ? " | YA REGISTRADA: " + money(apuestaDe(p).monto) + " a " + Number(apuestaDe(p).cuota).toFixed(2) + " (" + apuestaDe(p).modo + ")" : "");
 // Marcador del filtro de Claude (picks ya liquidados con opinion), por veredicto y confianza
 function marcadorClaude() {
-  const cl = S.picks.filter((p) => p.claude_veredicto && (p.resultado === "W" || p.resultado === "L"));
+  const fuente = S.picksHist && S.picksHist.length ? S.picksHist : S.picks;
+  const cl = fuente.filter((p) => p.claude_veredicto && (p.resultado === "W" || p.resultado === "L"));
   const g = (f) => { const x = cl.filter(f), w = x.filter((p) => p.resultado === "W").length, u = sumar(x, (p) => (p.resultado === "W" ? Number(p.cuota_min) - 1 : -1)); return { n: x.length, w, u }; };
   return { total: cl.length, apostar: g((p) => p.claude_veredicto === "APOSTAR"), pasar: g((p) => p.claude_veredicto === "PASAR"),
     alta: g((p) => p.claude_veredicto === "APOSTAR" && p.claude_confianza === "ALTA"), media: g((p) => p.claude_veredicto === "APOSTAR" && p.claude_confianza === "MEDIA"), baja: g((p) => p.claude_veredicto === "APOSTAR" && p.claude_confianza === "BAJA") };
