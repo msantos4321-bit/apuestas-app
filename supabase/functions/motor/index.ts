@@ -246,6 +246,56 @@ function diasEspn(picks) {
   return [...s].sort();
 }
 
+// ---------- Polymarket (en papel) --------------------------------------------
+// Bolsa de predicciones: el precio va de 0 a 1 (70 centavos = 70%). La app lo lee
+// gratis de la API publica y lo compara con la probabilidad justa de Pinnacle.
+const PM_SERIES = ["10365", "10366"];   // ATP Tour y WTA Tour (individuales)
+const PM_FEE = 0.05;                    // comision del que compra al precio que esta: 0.05 x p x (1 - p) por accion
+
+const parseLista = (x) => { try { return Array.isArray(x) ? x : JSON.parse(x || "[]"); } catch (_e) { return []; } };
+const numO = (x) => (x === null || x === undefined || x === "" || Number.isNaN(Number(x)) ? null : Number(x));
+
+// Mercados "quien gana el partido" abiertos, a partir de los eventos de Polymarket.
+function mercadosPolymarket(eventos) {
+  const out = [];
+  for (const ev of eventos || []) {
+    for (const m of ev.markets || []) {
+      if (m.sportsMarketType !== "moneyline" || m.closed || m.acceptingOrders === false) continue;
+      const nombres = parseLista(m.outcomes), tokens = parseLista(m.clobTokenIds);
+      if (nombres.length !== 2 || tokens.length !== 2) continue;
+      const ini = m.gameStartTime ? Date.parse(String(m.gameStartTime).replace(" ", "T").replace(/\+00$/, "Z")) : Date.parse(ev.startTime || ev.startDate);
+      out.push({ slug: m.slug || ev.slug, a: nombres[0], b: nombres[1], tokens, bid0: numO(m.bestBid), ask0: numO(m.bestAsk), inicioMs: ini, volumen: numO(m.volumeNum) });
+    }
+  }
+  return out;
+}
+
+// Busca el partido del pick en Polymarket. Devuelve el precio para el jugador elegido.
+function emparejarPolymarket(pick, mercados) {
+  const ini = Date.parse(pick.inicio);
+  for (const m of mercados) {
+    const directo = mismoJugador(m.a, pick.jugador_a) && mismoJugador(m.b, pick.jugador_b);
+    const cruzado = mismoJugador(m.a, pick.jugador_b) && mismoJugador(m.b, pick.jugador_a);
+    if (!directo && !cruzado) continue;
+    if (m.inicioMs && Math.abs(m.inicioMs - ini) > 36 * 3600e3) continue;
+    const i = mismoJugador(m.a, pick.seleccion) ? 0 : mismoJugador(m.b, pick.seleccion) ? 1 : -1;
+    if (i < 0) continue;
+    const ask = i === 0 ? m.ask0 : (m.bid0 === null ? null : 1 - m.bid0);
+    const bid = i === 0 ? m.bid0 : (m.ask0 === null ? null : 1 - m.ask0);
+    if (ask === null || ask <= 0 || ask >= 0.999) continue;
+    return { slug: m.slug, token: m.tokens[i], precio: r4(ask), bid: bid === null ? null : r4(bid), volumen: m.volumen };
+  }
+  return null;
+}
+
+// Maximo a pagar en Polymarket para tener la misma ventaja que pedimos a Caliente (2%).
+const pmMaximo = (pJusta, evMin) => Math.floor((pJusta / (1 + evMin)) * 1000) / 1000;
+// Costo real por accion comprando al precio que esta (con comision).
+const pmCosto = (p) => p * (1 + PM_FEE * (1 - p));
+// Ganancia por 1 unidad apostada si gana: comprando ya (con comision) / con orden limite (sin comision).
+const pmGananciaTaker = (p) => 1 / pmCosto(p) - 1;
+const pmGananciaMaker = (p) => 1 / p - 1;
+
 // ==== HANDLER ===============================================================
 
 import { createClient } from "npm:@supabase/supabase-js@2";
@@ -421,14 +471,61 @@ async function buscar(db, key, cfg, auto = false) {
     if (error) throw new Error("No se pudo guardar: " + error.message);
   }
   const cierres = await guardarCierres(db, eventos);
+  const pm = await actualizarPolymarket(db, cfg).catch((e) => ({ pm_error: String(e) }));
 
   const fila = { dia, busquedas: hechas + (auto ? 0 : 1), creditos_restantes: restantes, ...(auto ? { auto: (uso ? uso.auto : 0) + 1 } : {}) };
   await db.from("ap_uso").upsert(fila, { onConflict: "dia" });
 
   return {
     ok: true, torneos: activos.length, partidos: eventos.length, picks: picks.length,
-    liquidados: lis.liquidados, creditos_restantes: restantes, busquedas_hoy: hechas + (auto ? 0 : 1), cierres, muertos,
+    liquidados: lis.liquidados, creditos_restantes: restantes, busquedas_hoy: hechas + (auto ? 0 : 1), cierres, muertos, ...pm,
   };
+}
+
+// ---------- Polymarket: lectura de precios y revision de ordenes -------------
+
+// Actualiza el precio de Polymarket de los picks que aun no empiezan (gratis; cada hora).
+async function actualizarPolymarket(db, cfg) {
+  const ahora = Date.now();
+  const { data: picks } = await db.from("ap_picks").select("id, jugador_a, jugador_b, seleccion, inicio, p_justa, pm_primero")
+    .eq("estado", "activo").gt("inicio", new Date(ahora).toISOString()).lt("inicio", new Date(ahora + 48 * 3600e3).toISOString());
+  if (!picks || !picks.length) return { pm_picks: 0, pm_encontrados: 0 };
+  let eventos = [];
+  for (const serie of PM_SERIES) {
+    try { eventos = eventos.concat(await getJsonLibre(`https://gamma-api.polymarket.com/events?series_id=${serie}&closed=false&limit=500`, 20000)); } catch (_e) { /* sigue */ }
+  }
+  const mercados = mercadosPolymarket(eventos);
+  let n = 0;
+  for (const p of picks) {
+    const pm = emparejarPolymarket(p, mercados);
+    if (!pm) continue;
+    const fila = { pm_slug: pm.slug, pm_token: pm.token, pm_precio: pm.precio, pm_bid: pm.bid, pm_volumen: pm.volumen,
+      pm_max: pmMaximo(Number(p.p_justa), Number(cfg.ev_min)), pm_hora: new Date().toISOString() };
+    if (p.pm_primero === null || p.pm_primero === undefined) fila.pm_primero = pm.precio;
+    await db.from("ap_picks").update(fila).eq("id", p.id);
+    n++;
+  }
+  return { pm_picks: picks.length, pm_encontrados: n, pm_mercados: mercados.length };
+}
+
+// Despues de que empieza el partido: con el historial de precios, ve si una orden de compra
+// al maximo (pm_max) se habria llenado antes del inicio. Aproximado: precio negociado < maximo.
+async function revisarLlenado(db) {
+  const ahora = Date.now();
+  const { data: picks } = await db.from("ap_picks").select("id, pm_token, pm_max, inicio, creado")
+    .not("pm_token", "is", null).is("pm_lleno", null).lt("inicio", new Date(ahora - 3600e3).toISOString()).limit(25);
+  let n = 0;
+  for (const p of picks || []) {
+    const fin = Math.floor(Date.parse(p.inicio) / 1000), ini = Math.max(Math.floor(Date.parse(p.creado) / 1000), fin - 3 * 86400);
+    let hist = [];
+    try { const js = await getJsonLibre(`https://clob.polymarket.com/prices-history?market=${p.pm_token}&startTs=${ini}&endTs=${fin}&fidelity=5`, 15000); hist = (js && js.history) || []; } catch (_e) { continue; }
+    const precios = hist.map((x) => Number(x.p)).filter((x) => x > 0 && x < 1);
+    if (!precios.length && ahora - Date.parse(p.inicio) < 86400e3) continue;   // reintenta mas tarde
+    const min = precios.length ? Math.min(...precios) : null;
+    await db.from("ap_picks").update({ pm_min_pre: min, pm_lleno: min !== null && min < Number(p.pm_max) }).eq("id", p.id);
+    n++;
+  }
+  return n;
 }
 
 // ---------- Notificaciones --------------------------------------------------
@@ -493,7 +590,9 @@ async function auto(db, key, cfg) {
   if (!HORAS_AUTO.includes(h)) {
     // Fuera de horario: solo resultados con ESPN (gratis). Los avisos se mandan a las 8 a.m. y 9 p.m.
     const esp = await liquidarEspn(db).catch((e) => ({ error: String(e) }));
-    return { ok: true, solo_resultados: true, hora: h, ...esp };
+    const pm = await actualizarPolymarket(db, cfg).catch((e) => ({ pm_error: String(e) }));
+    const llenados = await revisarLlenado(db).catch(() => 0);
+    return { ok: true, solo_resultados: true, hora: h, ...esp, ...pm, pm_revisados: llenados };
   }
   const dia = diaTijuana();
   const { data: uso } = await db.from("ap_uso").select("*").eq("dia", dia).maybeSingle();
@@ -511,6 +610,7 @@ async function auto(db, key, cfg) {
   } else {
     r = await buscar(db, key, cfg, true);
   }
+  r.pm_revisados = await revisarLlenado(db).catch(() => 0);
   r.avisos = await avisar(db, false);
   return r;
 }
@@ -537,6 +637,9 @@ Deno.serve(async (req) => {
         const r = await liquidar(db, key);
         r.avisos = await avisar(db, body.silencioso === true);
         return json({ ok: true, ...r });
+      }
+      if (body.accion === "polymarket") {
+        return json({ ok: true, ...(await actualizarPolymarket(db, cfg)), pm_revisados: await revisarLlenado(db) });
       }
       if (body.accion === "diag_scores") {
         const sport = body.sport || "tennis_atp_paris_masters";

@@ -72,3 +72,19 @@ begin
     );
   $job$);
 end $$;
+
+-- ============================================================================
+-- v1.4: Polymarket (en papel). Precio de compra del favorito en Polymarket,
+-- precio maximo a pagar (cuota minima convertida a centavos) y si una orden
+-- limite a ese precio se habria llenado antes del partido.
+-- ============================================================================
+alter table ap_picks add column if not exists pm_slug text;
+alter table ap_picks add column if not exists pm_token text;          -- token del jugador elegido
+alter table ap_picks add column if not exists pm_precio numeric;      -- costo de comprar ya (mejor oferta de venta)
+alter table ap_picks add column if not exists pm_bid numeric;         -- mejor oferta de compra
+alter table ap_picks add column if not exists pm_max numeric;         -- maximo a pagar = p_justa / (1 + ev_min)
+alter table ap_picks add column if not exists pm_volumen numeric;
+alter table ap_picks add column if not exists pm_hora timestamptz;    -- ultima lectura antes del partido
+alter table ap_picks add column if not exists pm_primero numeric;     -- primer precio visto (para comparar)
+alter table ap_picks add column if not exists pm_min_pre numeric;     -- precio mas bajo antes de empezar (historial)
+alter table ap_picks add column if not exists pm_lleno boolean;       -- la orden a pm_max se habria llenado

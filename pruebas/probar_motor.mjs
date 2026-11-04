@@ -7,7 +7,7 @@ import { fileURLToPath } from "node:url";
 const dir = path.dirname(fileURLToPath(import.meta.url));
 const src = fs.readFileSync(path.join(dir, "..", "supabase", "functions", "motor", "index.ts"), "utf8");
 const core = src.split("\n// ==== HANDLER")[0] +
-  "\nexport { shin, probReferencia, construirPicks, ganadorDeScores, inferirNivel, inferirSuperficie, pinnacleDe, horaTijuana, normNombre, mismoJugador, partidosEspn, resolverConEspn, diasEspn };\n";
+  "\nexport { shin, probReferencia, construirPicks, ganadorDeScores, inferirNivel, inferirSuperficie, pinnacleDe, horaTijuana, normNombre, mismoJugador, partidosEspn, resolverConEspn, diasEspn, mercadosPolymarket, emparejarPolymarket, pmMaximo, pmCosto, pmGananciaTaker, pmGananciaMaker };\n";
 const tmp = path.join(dir, "_core_tmp.mjs");
 fs.writeFileSync(tmp, core);
 const m = await import("file://" + tmp.replace(/\\/g, "/"));
@@ -94,6 +94,24 @@ ok(m.ganadorDeScores({ completed: true, scores: [{ name: "Ana", score: "1" }, { 
   ok(m.resolverConEspn(pk("Andrey Rublev", "Tomas Martin Etcheverry", "Andrey Rublev", "2026-10-20T10:00:00Z"), ps) === null, "otra fecha lejana no cuenta");
   ok(m.resolverConEspn(pk("Novak Djokovic", "Valentin Vacherot", "Novak Djokovic", "2026-11-03T09:00:00Z"), ps) === null, "partido no encontrado");
   ok(m.diasEspn([{ inicio: "2026-11-03T10:00:00Z" }]).join(",") === "20261102,20261103,20261104", "dias a consultar");
+}
+
+// 9) Polymarket
+{
+  const evs = [{ slug: "atp-molcan-fritz", startTime: "2026-11-04T15:30:00Z", markets: [
+    { sportsMarketType: "moneyline", slug: "atp-molcan-fritz", outcomes: '["Alex Molcan", "Taylor Fritz"]', clobTokenIds: '["t0", "t1"]', bestBid: 0.21, bestAsk: 0.22, volumeNum: 1500, gameStartTime: "2026-11-04 15:30:00+00", closed: false, acceptingOrders: true },
+    { sportsMarketType: "tennis_first_set_winner", outcomes: '["Alex Molcan", "Taylor Fritz"]', clobTokenIds: '["s0", "s1"]', bestBid: 0.3, bestAsk: 0.31 },
+  ] }, { slug: "cerrado", markets: [{ sportsMarketType: "moneyline", outcomes: '["A B", "C D"]', clobTokenIds: '["x", "y"]', closed: true }] }];
+  const ms = m.mercadosPolymarket(evs);
+  ok(ms.length === 1 && ms[0].tokens[1] === "t1", "solo el ganador del partido y abierto");
+  const pk = { jugador_a: "Taylor Fritz", jugador_b: "Alex Molcan", seleccion: "Taylor Fritz", inicio: "2026-11-04T13:50:00Z" };
+  const pm = m.emparejarPolymarket(pk, ms);
+  ok(pm && pm.token === "t1" && Math.abs(pm.precio - 0.79) < 1e-9 && Math.abs(pm.bid - 0.78) < 1e-9, "Fritz: comprar a 79c (1 - 0.21), vender a 78c");
+  ok(m.emparejarPolymarket({ ...pk, inicio: "2026-11-07T13:50:00Z" }, ms) === null, "otra fecha no empareja");
+  ok(m.pmMaximo(0.75, 0.02) === 0.735, "maximo a pagar 73.5c con p=75% (" + m.pmMaximo(0.75, 0.02) + ")");
+  ok(Math.abs(m.pmCosto(0.7) - 0.7105) < 1e-9, "comision a 70c = 1.05c por accion");
+  ok(Math.abs(m.pmGananciaMaker(0.735) * 0.75 - 0.25 - 0.02) < 0.002, "orden limite al maximo = +2% de ventaja");
+  ok(m.pmGananciaTaker(0.75) < m.pmGananciaMaker(0.75), "comprar ya cuesta mas que la orden limite");
 }
 
 console.log(fallos === 0 ? "\nTODO OK" : "\nHAY " + fallos + " FALLO(S)");

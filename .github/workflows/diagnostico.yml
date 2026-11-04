@@ -17,6 +17,8 @@ jobs:
           echo "::add-mask::$C"
           echo "== liquidar"
           curl -sS --max-time 140 -X POST "https://$REF.supabase.co/functions/v1/motor" -H "Content-Type: application/json" -H "x-ap-cron: $C" -d '{"accion":"liquidar"}'; echo
+          echo "== polymarket"
+          curl -sS --max-time 140 -X POST "https://$REF.supabase.co/functions/v1/motor" -H "Content-Type: application/json" -H "x-ap-cron: $C" -d '{"accion":"polymarket"}'; echo
           echo "== scores Paris (TheOddsAPI)"
           curl -sS --max-time 60 -X POST "https://$REF.supabase.co/functions/v1/motor" -H "Content-Type: application/json" -H "x-ap-cron: $C" \
             -d '{"accion":"diag_scores","sport":"tennis_atp_paris_masters"}' | jq -r '"http \(.http) restantes \(.restantes)", (.muestra|tostring|.[0:2500])'

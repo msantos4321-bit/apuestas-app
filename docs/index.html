@@ -109,9 +109,9 @@ const sumar = (a, f) => a.reduce((s, x) => s + (Number(f(x)) || 0), 0);
 function datosDemo() {
   const h = (hrs) => new Date(Date.now() + hrs * 36e5).toISOString();
   const picks = [
-    { id: 1, evento_id: "d1", jugador_a: "Jasmine Paolini", jugador_b: "Anhelina Kalinina", seleccion: "Jasmine Paolini", lado: "A", torneo: "WTA Ningbo", nivel: "WTA", superficie: "Hard", inicio: h(5), p_justa: 0.669, ref_fuente: "Pinnacle", cuota_min: 1.52, cuota_ref: 1.55, semaforo: "verde", estado: "activo", resultado: null },
+    { id: 1, evento_id: "d1", jugador_a: "Jasmine Paolini", jugador_b: "Anhelina Kalinina", seleccion: "Jasmine Paolini", lado: "A", torneo: "WTA Ningbo", nivel: "WTA", superficie: "Hard", inicio: h(5), p_justa: 0.669, ref_fuente: "Pinnacle", cuota_min: 1.52, cuota_ref: 1.55, semaforo: "verde", estado: "activo", resultado: null, pm_precio: 0.68, pm_max: 0.655, pm_volumen: 41250, pm_hora: h(0) },
     { id: 2, evento_id: "d2", jugador_a: "Marie Bouzkova", jugador_b: "Iga Swiatek", seleccion: "Iga Swiatek", lado: "B", torneo: "WTA Ningbo", nivel: "WTA", superficie: "Hard", inicio: h(27), p_justa: 0.749, ref_fuente: "consenso (22 casas)", cuota_min: 1.36, cuota_ref: 1.37, semaforo: "amarillo", estado: "activo", resultado: null },
-    { id: 3, evento_id: "d3", jugador_a: "Tomas Machac", jugador_b: "Zangar Nurlanuly", seleccion: "Tomas Machac", lado: "A", torneo: "ATP Almaty", nivel: "ATP", superficie: "Hard", inicio: h(9), p_justa: 0.912, ref_fuente: "Pinnacle", cuota_min: 1.12, cuota_ref: 1.13, semaforo: "verde", estado: "activo", resultado: null },
+    { id: 3, evento_id: "d3", jugador_a: "Tomas Machac", jugador_b: "Zangar Nurlanuly", seleccion: "Tomas Machac", lado: "A", torneo: "ATP Almaty", nivel: "ATP", superficie: "Hard", inicio: h(9), p_justa: 0.912, ref_fuente: "Pinnacle", cuota_min: 1.12, cuota_ref: 1.13, semaforo: "verde", estado: "activo", resultado: null, pm_precio: 0.885, pm_max: 0.894, pm_volumen: 8900, pm_hora: h(0) },
   ];
   const ap = []; let id = 1; const base = Date.now();
   const add = (modo, est, sel, cuota, monto, res, dd, conf, nivel) => ap.push({ id: id++, pick_id: null, fecha: new Date(base - dd * 864e5).toISOString(), inicio: new Date(base - dd * 864e5).toISOString(), jugador_a: sel, jugador_b: "Rival", seleccion: sel, torneo: "WTA/ATP", nivel, estrategia: est, modo, cuota, monto, resultado: res, pnl: res === "W" ? +(monto * (cuota - 1)).toFixed(2) : res === "L" ? -monto : res === "X" ? 0 : null, confianza: conf, p_justa: 0.6 });
@@ -122,8 +122,8 @@ function datosDemo() {
   add("real", "v4", "Carlos Alcaraz", 1.3, 20, "W", 3, "verde", "ATP"); add("real", "v4", "Aryna Sabalenka", 1.45, 20, "W", 2, "verde", "WTA");
   add("real", "v4", "Daniil Medvedev", 1.52, 18, "L", 1, "verde", "ATP");
   ap.forEach((a, i) => { if (a.modo !== "historico") { a.cuota_cierre = +(a.cuota - 0.04 + (i % 3) * 0.03).toFixed(2); a.p_cierre = +(1.02 / a.cuota_cierre).toFixed(4); } });
-  picks.push({ id: 4, evento_id: "d4", jugador_a: "Ana Vieja", jugador_b: "Bea", seleccion: "Ana Vieja", lado: "A", torneo: "WTA", nivel: "WTA", superficie: "Hard", inicio: h(-30), p_justa: 0.7, cuota_min: 1.46, estado: "liquidado", resultado: "W", claude_veredicto: "APOSTAR", claude_confianza: "ALTA", claude_razon: "Rival lesionada", cuota_pinnacle: 1.41 },
-    { id: 5, evento_id: "d5", jugador_a: "Cata", jugador_b: "Dina", seleccion: "Cata", lado: "A", torneo: "WTA", nivel: "WTA", superficie: "Hard", inicio: h(-28), p_justa: 0.65, cuota_min: 1.57, estado: "liquidado", resultado: "L", claude_veredicto: "PASAR", claude_razon: "Viene de retiro", cuota_pinnacle: 1.52 });
+  picks.push({ id: 4, evento_id: "d4", jugador_a: "Ana Vieja", jugador_b: "Bea", seleccion: "Ana Vieja", lado: "A", torneo: "WTA", nivel: "WTA", superficie: "Hard", inicio: h(-30), p_justa: 0.7, cuota_min: 1.46, estado: "liquidado", resultado: "W", claude_veredicto: "APOSTAR", claude_confianza: "ALTA", claude_razon: "Rival lesionada", cuota_pinnacle: 1.41, pm_precio: 0.71, pm_max: 0.686, pm_lleno: true },
+    { id: 5, evento_id: "d5", jugador_a: "Cata", jugador_b: "Dina", seleccion: "Cata", lado: "A", torneo: "WTA", nivel: "WTA", superficie: "Hard", inicio: h(-28), p_justa: 0.65, cuota_min: 1.57, estado: "liquidado", resultado: "L", claude_veredicto: "PASAR", claude_razon: "Viene de retiro", cuota_pinnacle: 1.52, pm_precio: 0.66, pm_max: 0.637, pm_lleno: false });
   ap.push({ id: id++, pick_id: 1, fecha: new Date().toISOString(), inicio: h(5), jugador_a: "Jasmine Paolini", jugador_b: "Anhelina Kalinina", seleccion: "Jasmine Paolini", torneo: "WTA Ningbo", nivel: "WTA", estrategia: "v4", modo: "real", cuota: 1.55, monto: 15, resultado: null, pnl: null, confianza: "verde", p_justa: 0.669 });
   const cfg = { id: 1, banca_inicial: 1000, tope_apuesta_pct: 2, tope_dia_pct: 5, kelly_fraccion: 0.25, p_min: 0.55, p_max: 0.92, ev_min: 0.02, cuota_max: 3, horas_max: 24, busquedas_max_dia: 3, formato_momio: "decimal" };
   return { cfg, picks, apuestas: ap.reverse(), uso: { dia: dia(), busquedas: 1, creditos_restantes: 438 } };
@@ -219,6 +219,27 @@ function statsSistema(lista) {
     anuladas: lista.filter((p) => p.resultado === "X").length };
 }
 const uTxt = (x, n) => (n ? (x >= 0 ? "+" : "") + x.toFixed(2) + " u (" + (x >= 0 ? "+" : "") + (100 * x / n).toFixed(1) + "%)" : "-");
+/* Polymarket (en papel): precios en centavos; comision 0.05 x p x (1-p) al comprar al precio que esta */
+const cent = (p) => (p === null || p === undefined ? "-" : (Number(p) * 100).toFixed(Number(p) * 100 % 1 ? 1 : 0) + "¢");
+const pmMax = (p) => (p.pm_max ? Number(p.pm_max) : Math.floor((Number(p.p_justa) / (1 + Number((S.cfg || {}).ev_min || 0.02))) * 1000) / 1000);
+const pmTaker = (pr) => 1 / (pr * (1 + 0.05 * (1 - pr))) - 1;
+function statsPolymarket(lista) {
+  const liq = lista.filter((p) => (p.resultado === "W" || p.resultado === "L") && Number(p.pm_precio) > 0);
+  const uTk = sumar(liq, (p) => (p.resultado === "W" ? pmTaker(Number(p.pm_precio)) : -1));
+  const rev = liq.filter((p) => p.pm_lleno !== null && p.pm_lleno !== undefined), llen = rev.filter((p) => p.pm_lleno);
+  const uMk = sumar(llen, (p) => (p.resultado === "W" ? 1 / pmMax(p) - 1 : -1));
+  return { n: liq.length, uTk, rev: rev.length, llen: llen.length, uMk, baratos: liq.filter((p) => Number(p.pm_precio) <= pmMax(p)).length };
+}
+function bloquePolymarket(lista) {
+  const s = statsPolymarket(lista);
+  let h = '<div class="card"><div class="row"><h2 style="margin:0">Polymarket (en papel)</h2><span class="chip">' + s.n + ' con precio</span></div><div class="small muted" style="margin-top:6px">Cada pick se compara solo con Polymarket. No necesitas hacer nada.</div>';
+  if (!s.n) return h + '<div class="small muted" style="margin-top:8px">Aún sin partidos liquidados con precio de Polymarket. Empezó el 4 nov.</div></div>';
+  h += '<table style="margin-top:8px"><tr><th></th><th>Picks</th><th>Resultado</th></tr>';
+  h += '<tr><td>Comprando ya (con comisión)</td><td>' + s.n + '</td><td class="' + (s.uTk >= 0 ? "pos" : "neg") + '">' + uTxt(s.uTk, s.n) + "</td></tr>";
+  h += '<tr><td>Orden a tu precio máximo</td><td>' + s.llen + " de " + s.rev + ' llenas</td><td class="' + (s.uMk >= 0 ? "pos" : "neg") + '">' + uTxt(s.uMk, s.llen) + "</td></tr>";
+  h += '<tr><td>Ya pagaba tu precio sin esperar</td><td colspan="2">' + s.baratos + " de " + s.n + "</td></tr></table>";
+  return h + '<div class="tiny muted" style="margin-top:6px">La orden cuenta como llena si el precio bajó de tu máximo antes de empezar (aproximado). u = unidades apostando 1 por pick.</div></div>';
+}
 const uCorta = (x) => (x >= 0 ? "+" : "") + x.toFixed(2) + " u";
 const pctU = (x, n) => (n ? " · " + (x >= 0 ? "+" : "") + (100 * x / n).toFixed(1) + "% por pick" : "");
 function vistaSistema(seg) {
@@ -230,12 +251,13 @@ function vistaSistema(seg) {
   h += '<div class="stat"><div class="v ' + (s.uPin >= 0 ? "pos" : "neg") + '">' + uCorta(s.uPin) + '</div><div class="l">Al precio de Pinnacle' + pctU(s.uPin, s.nPin) + '</div></div></div>';
   if (s.n) h += '<div class="tiny muted" style="margin-top:8px">' + (Math.abs(s.acierto - s.esperado) < 0.05 ? "El acierto está donde el precio dice que debe estar: las probabilidades son correctas. La ganancia depende de conseguir una cuota mayor a la mínima." : s.acierto < s.esperado ? "Vas abajo de lo esperado: con menos de 100 picks suele ser mala racha." : "Vas arriba de lo esperado: con menos de 100 picks suele ser buena racha.") + " u = unidades apostando 1 por pick." + (s.anuladas ? " Anuladas (walkover): " + s.anuladas + "." : "") + "</div>";
   h += "</div>";
+  h += bloquePolymarket(todos);
   h += '<div class="card"><h2>Picks (' + todos.length + ")</h2>";
   if (!todos.length) h += '<div class="empty small">Aún no hay picks liquidados.</div>';
   todos.slice(0, 80).forEach((p) => {
     const est = p.resultado === "W" ? '<span class="chip ok">Ganó</span>' : p.resultado === "L" ? '<span class="chip bad">Perdió</span>' : '<span class="chip gray">Anulado</span>';
     const rival = p.seleccion === p.jugador_a ? p.jugador_b : p.jugador_a;
-    h += '<div class="bet"><div class="row"><b>' + esc(p.seleccion) + "</b>" + est + '</div><div class="tiny muted">vs ' + esc(rival || "") + " &middot; prob. " + pct(p.p_justa, 0) + " &middot; mín. " + cuotaTxt(p.cuota_min) + (p.cuota_pinnacle ? " &middot; Pinnacle " + cuotaTxt(p.cuota_pinnacle) : "") + (p.claude_veredicto ? " &middot; Claude " + esc(p.claude_veredicto) : "") + (apuestaDe(p) ? " &middot; registrada (" + esc(apuestaDe(p).modo) + ")" : "") + " &middot; " + new Date(p.inicio).toLocaleDateString("es-MX", { timeZone: TZ, day: "numeric", month: "short" }) + "</div></div>";
+    h += '<div class="bet"><div class="row"><b>' + esc(p.seleccion) + "</b>" + est + '</div><div class="tiny muted">vs ' + esc(rival || "") + " &middot; prob. " + pct(p.p_justa, 0) + " &middot; mín. " + cuotaTxt(p.cuota_min) + (p.cuota_pinnacle ? " &middot; Pinnacle " + cuotaTxt(p.cuota_pinnacle) : "") + (Number(p.pm_precio) > 0 ? " &middot; Polymarket " + cent(p.pm_precio) + (p.pm_lleno ? " (orden llena)" : "") : "") + (p.claude_veredicto ? " &middot; Claude " + esc(p.claude_veredicto) : "") + (apuestaDe(p) ? " &middot; registrada (" + esc(apuestaDe(p).modo) + ")" : "") + " &middot; " + new Date(p.inicio).toLocaleDateString("es-MX", { timeZone: TZ, day: "numeric", month: "short" }) + "</div></div>";
   });
   return h + "</div>";
 }
@@ -245,7 +267,7 @@ function porClave(lista, clave) {
 }
 
 /* ---------------- "copiar para Claude" ---------------- */
-const lineaPick = (p) => "- #" + p.id + " " + p.seleccion + " (" + p.jugador_a + " vs " + p.jugador_b + ", " + p.torneo + ", " + p.superficie + ") | inicio " + cuando(p.inicio) + " | prob. justa " + pct(p.p_justa) + " (" + p.ref_fuente + ") | apostar solo si Caliente paga >= " + p.cuota_min.toFixed(2) + (apuestaDe(p) ? " | YA REGISTRADA: " + money(apuestaDe(p).monto) + " a " + Number(apuestaDe(p).cuota).toFixed(2) + " (" + apuestaDe(p).modo + ")" : "");
+const lineaPick = (p) => "- #" + p.id + " " + p.seleccion + " (" + p.jugador_a + " vs " + p.jugador_b + ", " + p.torneo + ", " + p.superficie + ") | inicio " + cuando(p.inicio) + " | prob. justa " + pct(p.p_justa) + " (" + p.ref_fuente + ") | apostar solo si Caliente paga >= " + p.cuota_min.toFixed(2) + (Number(p.pm_precio) > 0 ? " | Polymarket " + cent(p.pm_precio) + " (max. " + cent(pmMax(p)) + ")" : "") + (apuestaDe(p) ? " | YA REGISTRADA: " + money(apuestaDe(p).monto) + " a " + Number(apuestaDe(p).cuota).toFixed(2) + " (" + apuestaDe(p).modo + ")" : "");
 // Marcador del filtro de Claude (picks ya liquidados con opinion), por veredicto y confianza
 function marcadorClaude() {
   const fuente = S.picksHist && S.picksHist.length ? S.picksHist : S.picks;
@@ -376,6 +398,10 @@ function vistaHoy() {
     h += '<div class="who" style="margin-top:8px">' + esc(p.seleccion) + '</div><div class="small muted">' + esc(p.jugador_a) + " vs " + esc(p.jugador_b) + " &middot; " + esc(p.torneo) + "</div><div class=\"small\" style=\"margin-top:2px\">" + esc(cuando(p.inicio)) + "</div>";
     const mp = montoPick(p);
     h += '<div class="callout"><div class="row"><div><div class="small muted">Apuesta solo si Caliente paga</div><b>' + cuotaTxt(p.cuota_min) + '</b> <span class="small muted">o más</span></div><div style="text-align:right"><div class="small muted">Monto sugerido</div><b>' + (mp > 0 ? money(mp) : "$0") + "</b>" + '<div class="tiny muted">' + (p.claude_veredicto === "PASAR" ? "Claude dijo PASAR" : p.claude_confianza === "BAJA" && p.claude_veredicto === "APOSTAR" ? "mitad por confianza BAJA" : "a la cuota mínima") + '</div></div></div><div class="tiny muted" style="margin-top:4px">Probabilidad justa ' + pct(p.p_justa) + " (" + esc(p.ref_fuente) + ")" + (p.cuota_ref ? " &middot; otras casas pagan hasta " + cuotaTxt(p.cuota_ref) + " (no aplica si no estás ahí)" : "") + "</div></div>";
+    if (Number(p.pm_precio) > 0) {
+      const mx = pmMax(p), ya = Number(p.pm_precio) <= mx;
+      h += '<div class="callout" style="margin-top:8px"><div class="row"><div><div class="small muted">Polymarket ahora</div><b>' + cent(p.pm_precio) + '</b> <span class="tiny muted">(cuota ' + (1 / Number(p.pm_precio)).toFixed(2) + ')</span></div><div style="text-align:right"><div class="small muted">Compra a</div><b>' + cent(mx) + '</b> <span class="small muted">o menos</span></div></div><div class="tiny ' + (ya ? "pos" : "muted") + '" style="margin-top:4px">' + (ya ? "Ya paga tu precio: aquí sí hay ventaja." : "Hoy no alcanza: habría que dejar una orden a " + cent(mx) + ".") + (p.pm_volumen ? " Volumen " + money(p.pm_volumen).replace(".00", "") + " USD." : "") + "</div></div>";
+    } else h += '<div class="tiny muted" style="margin-top:6px">Polymarket: aún no aparece este partido.</div>';
     if (p.claude_veredicto) h += '<div class="small" style="margin:6px 0"><span class="chip ' + (p.claude_veredicto === "APOSTAR" ? "ok" : "gray") + '">Claude: ' + (p.claude_veredicto === "APOSTAR" ? "APOSTAR" : "PASAR") + (p.claude_confianza ? " · " + esc(p.claude_confianza) : "") + "</span> " + esc(p.claude_razon || "") + "</div>";
     if (ap) h += '<div class="msg ok">Ya la registraste: ' + money(ap.monto) + " a " + cuotaTxt(ap.cuota) + " (" + (ap.modo === "real" ? "real" : "papel") + ")" + (ap.resultado === "X" ? " &middot; anulada" : "") + '</div><div class="btns"><button class="sm" data-act="editar" data-id="' + ap.id + '">Editar</button><button class="sm" data-act="deshacer" data-id="' + ap.id + '">Deshacer registro</button></div>';
     else h += '<div class="btns"><button class="ok" data-act="apostar" data-id="' + p.id + '">Ya aposté</button><button data-act="pasar" data-id="' + p.id + '">Pasar</button><button data-act="copiar1" data-id="' + p.id + '">Claude</button></div>';
@@ -464,7 +490,7 @@ function vistaEstrategias() {
   let h = msgHtml();
   h += card("v4 · actual", "Probabilidad justa de Pinnacle o consenso; solo favoritos claros; se apuesta únicamente si Caliente paga la cuota mínima.", v4, '<span class="chip ok">En uso</span>');
   const ss = statsSistema(picksSistema());
-  h += '<div class="card"><div class="row"><h2 style="margin:0">Sistema completo</h2><span class="chip">' + ss.n + ' picks</span></div><div class="small muted" style="margin-top:6px">Todos los picks del motor, apuestes o no.</div><table style="margin-top:8px"><tr><td>Acierto real / esperado</td><td><b>' + (ss.n ? pct(ss.acierto, 0) + " / " + pct(ss.esperado, 0) : "-") + '</b></td></tr><tr><td>A la cuota mínima</td><td class="' + (ss.uMin >= 0 ? "pos" : "neg") + '">' + uTxt(ss.uMin, ss.n) + '</td></tr><tr><td>Al precio de Pinnacle</td><td class="' + (ss.uPin >= 0 ? "pos" : "neg") + '">' + uTxt(ss.uPin, ss.nPin) + '</td></tr></table><div class="tiny muted" style="margin-top:6px">Si el acierto real se parece al esperado, el precio de Pinnacle es correcto y no hay ventaja escondida en "acertar más": la única ganancia posible es cobrar más que la cuota mínima en alguna casa.</div></div>';
+  h += '<div class="card"><div class="row"><h2 style="margin:0">Sistema completo</h2><span class="chip">' + ss.n + ' picks</span></div><div class="small muted" style="margin-top:6px">Todos los picks del motor, apuestes o no.</div><table style="margin-top:8px"><tr><td>Acierto real / esperado</td><td><b>' + (ss.n ? pct(ss.acierto, 0) + " / " + pct(ss.esperado, 0) : "-") + '</b></td></tr><tr><td>A la cuota mínima</td><td class="' + (ss.uMin >= 0 ? "pos" : "neg") + '">' + uTxt(ss.uMin, ss.n) + '</td></tr><tr><td>Al precio de Pinnacle</td><td class="' + (ss.uPin >= 0 ? "pos" : "neg") + '">' + uTxt(ss.uPin, ss.nPin) + '</td></tr></table><div class="tiny muted" style="margin-top:6px">Si el acierto real se parece al esperado, el precio de Pinnacle es correcto y no hay ventaja escondida en "acertar más": la única ganancia posible es cobrar más que la cuota mínima en alguna casa.</div></div>' + bloquePolymarket(picksSistema());
   const mc = marcadorClaude(), cA = mc.apostar, cP = mc.pasar;
   const fila = (t, g) => "<tr><td>" + t + "</td><td>" + g.n + "</td><td>" + (g.n ? pct(g.w / g.n, 0) : "-") + '</td><td class="' + (g.u >= 0 ? "pos" : "neg") + '">' + (g.n ? (g.u >= 0 ? "+" : "") + g.u.toFixed(2) + " u" : "-") + "</td></tr>";
   h += '<div class="card"><div class="row"><h2 style="margin:0">Filtro de Claude</h2><span class="chip">' + mc.total + ' revisados</span></div><div class="small muted" style="margin-top:6px">Todos los picks con opinión de Claude ya liquidados, apueste o no. "u" = unidades si hubieras apostado 1 a la cuota mínima.</div><table style="margin-top:8px"><tr><th></th><th>Picks</th><th>Acierto</th><th>Resultado</th></tr>' + fila("Claude dijo APOSTAR", cA) + fila("&nbsp;&nbsp;· confianza ALTA", mc.alta) + fila("&nbsp;&nbsp;· confianza MEDIA", mc.media) + fila("&nbsp;&nbsp;· confianza BAJA", mc.baja) + fila("Claude dijo PASAR", cP) + '</table><div class="tiny muted" style="margin-top:6px">' + (mc.total < 30 ? "Con menos de 30 todavía no se puede juzgar." : cA.u > cP.u ? "Hasta ahora el filtro ayuda: los APOSTAR rinden más que los PASAR." : "Hasta ahora el filtro no ayuda: los PASAR rinden igual o más.") + "</div></div>";
@@ -485,6 +511,7 @@ const AYUDA = [
   ["¿Por qué casi nunca hay picks?", "Porque Caliente cobra un margen alto. Solo hay valor cuando su cuota supera el precio justo; eso pasa pocas veces. Es mejor pasar que apostar sin ventaja."],
   ["¿Cómo registro una apuesta?", "En Hoy, toca 'Ya aposté', escribe la cuota y el monto reales que viste en Caliente, y elige Real o Papel."],
   ["¿Cómo se marcan los resultados?", "Solos: cada hora el motor revisa ESPN (gratis) y marca ganó, perdió o anulada (walkover), en los picks y en tus apuestas. Te avisa a las 8 a.m. y 9 p.m. Solo si algo queda pendiente más de 2 días, tócalo a mano."],
+  ["¿Qué hace la app con Polymarket?", "Cada hora lee gratis el precio de Polymarket de cada pick y te dice a cuánto comprar (en centavos: 73¢ = 73%). Todo es en papel: mide cuánto ganarías comprando al precio que está y cuánto con una orden a tu precio máximo. No apuesta nada."],
   ["¿Qué es el semáforo?", "Verde: la probabilidad viene de Pinnacle. Amarillo: viene del consenso de varias casas. Rojo: dudoso."],
   ["¿Cómo uso la opinión de Claude?", "En Hoy toca 'Copiar todo para Claude' y pégalo en Claude. Copia su respuesta completa (trae al final un bloque VEREDICTOS) y toca 'Pegar opinión de Claude'. La app guarda APOSTAR o PASAR y la confianza (ALTA, MEDIA o BAJA; con BAJA te sugiere la mitad del monto) en cada pick y en Estrategias te dice si el filtro de Claude está ayudando."],
   ["¿Qué es la línea azul y el CLV?", "La línea azul punteada es lo que deberías llevar ganado según la ventaja de cada apuesta; la verde o roja es lo real. El CLV compara tu cuota con el precio final de Pinnacle: si le ganas al cierre seguido, el sistema funciona aunque tengas rachas malas."],
