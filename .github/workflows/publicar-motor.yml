@@ -35,7 +35,7 @@ jobs:
       - uses: supabase/setup-cli@v1
         with: { version: latest }
       - name: Publicar la funcion motor
-        run: supabase functions deploy motor --project-ref "$REF" --no-verify-jwt --use-api
+        run: supabase functions deploy motor --project-ref "$REF" --no-verify-jwt --use-api --yes
       - name: Probar que responde
         run: |
           code=$(curl -s -o /dev/null -w '%{http_code}' --max-time 30 -X POST \
