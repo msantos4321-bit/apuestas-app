@@ -1,0 +1,33 @@
+name: Sondeo Polymarket
+# Explora la API publica de Polymarket (datos publicos de tenis; no usa secretos).
+on:
+  workflow_dispatch:
+jobs:
+  sondeo:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Deportes
+        run: |
+          curl -sS --max-time 30 "https://gamma-api.polymarket.com/sports" > /tmp/s.json
+          jq -c '[.[] | select((.sport|tostring|test("atp|wta|tennis";"i")))]' /tmp/s.json | head -c 3000; echo
+      - name: Eventos ATP por serie/tag
+        run: |
+          TAG=$(jq -r '[.[] | select(.sport=="atp")][0].tags' /tmp/s.json | cut -d, -f1-3); echo "tags atp: $TAG"
+          SER=$(jq -r '[.[] | select(.sport=="atp")][0].series' /tmp/s.json); echo "series atp: $SER"
+          curl -sS --max-time 30 "https://gamma-api.polymarket.com/events?series_id=$SER&closed=false&limit=200" > /tmp/e.json
+          echo "eventos: $(jq length /tmp/e.json)"
+          jq -c '.[0:3][] | {id, slug, title, startDate, endDate, gameStartTime: .startTime, eventDate, tags: [.tags[]?.slug], nmk: (.markets|length)}' /tmp/e.json
+          echo "== mercados del primer evento"
+          jq -c '.[0].markets[] | {id, question, slug, sportsMarketType, outcomes, outcomePrices, bestBid, bestAsk, lastTradePrice, spread, liquidityNum, volumeNum, clobTokenIds, gameStartTime, closed, active, acceptingOrders, orderMinSize, orderPriceMinTickSize, feesEnabled, umaResolutionStatus}' /tmp/e.json | head -c 4000; echo
+          echo "== titulos"
+          jq -r '.[] | "\(.title) | \(.startTime // .startDate) | mk=\(.markets|length)"' /tmp/e.json | head -40
+      - name: Libro y historial de un mercado
+        run: |
+          TOK=$(jq -r '[.[] | .markets[] | select(.sportsMarketType=="moneyline" or true)][0].clobTokenIds | fromjson | .[0]' /tmp/e.json)
+          echo "token $TOK"
+          curl -sS --max-time 30 "https://clob.polymarket.com/book?token_id=$TOK" | jq -c '{bids: .bids[-3:], asks: .asks[-3:], tick_size, min_order_size}'
+          curl -sS --max-time 30 "https://clob.polymarket.com/prices-history?market=$TOK&interval=1d&fidelity=60" | jq -c '{n: (.history|length), ejemplo: .history[0:3]}'
+      - name: Eventos cerrados recientes (resolucion)
+        run: |
+          SER=$(jq -r '[.[] | select(.sport=="atp")][0].series' /tmp/s.json)
+          curl -sS --max-time 30 "https://gamma-api.polymarket.com/events?series_id=$SER&closed=true&limit=3&order=endDate&ascending=false" | jq -c '.[] | {title, closed, m: [.markets[] | {question, sportsMarketType, outcomes, outcomePrices, closed, umaResolutionStatus}][0:2]}' | head -c 2500
