@@ -1,8 +1,12 @@
 # Estado de la app — Apuestas Tenis
 
-**Versión:** 1.2.3 · App: https://msantos4321-bit.github.io/apuestas-app/ · Base y motor: Supabase proyecto "cinecasa" (tablas `ap_*`, función `motor`).
+**Versión:** 1.3.0 · App: https://msantos4321-bit.github.io/apuestas-app/ · Base y motor: Supabase proyecto "cinecasa" (tablas `ap_*`, función `motor`).
 
 ## Qué hace hoy
+- **v1.3.0 (4 nov 2026): resultados con ESPN.** TheOddsAPI no daba resultados del Masters de París (`completed:false`, `scores:null`), así que desde el 1 nov nada se liquidaba. Ahora el motor liquida con el scoreboard público de ESPN (`site.api.espn.com/.../tennis/{atp|wta}/scoreboard?dates=YYYYMMDD`, gratis, sin clave) **cada hora**; TheOddsAPI queda de respaldo. Reintenta picks de hasta 12 días (incluye `sin_dato`). Walkover = anulada (X); retiro = gana quien avanza. Se recuperaron 36 resultados atrasados el 4 nov.
+- **Historial → Sistema**: todos los picks del motor, registrados y liquidados solos (acierto real vs esperado, unidades a la cuota mínima y al precio de Pinnacle). Estrategias → "Sistema completo".
+- Picks muertos: si su torneo se leyó bien y el partido ya no aparece, pasan a `sin_dato` (ESPN igual los liquida si se juegan).
+- Avisos de resultados solo a las 8 a.m. y 9 p.m. (la liquidación de cada hora es silenciosa).
 - Pantallas Hoy, Historial, Banca, Estrategias y Ajustes; modo demostración.
 - Registrar apuestas (real/papel) con topes 2% y 5%; **editar** (Real↔Papel, cuota, monto, resultado) y **deshacer registro**.
 - Motor en la nube: busca picks con Pinnacle/consenso, liquida resultados, guarda la **cuota de cierre** (último precio de Pinnacle antes del partido).
@@ -27,6 +31,9 @@
 TheOddsAPI 500 créditos/mes (2 búsquedas automáticas + manuales; vigilar el contador en Hoy). Supabase se pausa a los 7 días sin uso (lo evitan `keepalive.yml` y el reloj horario).
 
 ## Qué revisar si se rompe
+- **Diagnóstico** (Actions → Diagnostico → Run): llama al motor para liquidar (`{"accion":"liquidar"}` con la clave del reloj), muestra lo que da TheOddsAPI y saca un volcado de la base **cifrado** con `diagnostico/llave_publica.pem` (el repo es público: nunca imprimir datos sin cifrar). Cada sesión de Claude debe generar su propia llave y reemplazar la pública.
+- "Publicar motor" necesita `--yes` con la CLI nueva de Supabase (ya puesto).
+- `keepalive.yml` no tenía `actions/checkout` y fallaba (arreglado; el reloj horario igual mantenía viva la base).
 - No llegan notificaciones: Ajustes → Enviar prueba; revisar permiso de Chrome; en Supabase SQL: `select * from cron.job_run_details order by start_time desc limit 5;` y `select * from net._http_response order by created desc limit 5;`.
 - "Falta publicar la actualización": correr Actions → Publicar motor.
 - Motor da 404: la función no está publicada.

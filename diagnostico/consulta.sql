@@ -8,5 +8,6 @@ select json_build_object(
  'picks_estado', (select json_agg(x) from (select estado, resultado, count(*) n from ap_picks group by 1,2 order by 1,2) x),
  'picks', (select json_agg(p) from (select id, evento_id, sport_key, seleccion, jugador_a, jugador_b, inicio, p_justa, ref_fuente, cuota_min, cuota_ref, estado, resultado, claude_veredicto, claude_confianza, cuota_pinnacle, p_cierre, cierre_hora, creado from ap_picks order by inicio) p),
  'apuestas', (select json_agg(a) from (select id, pick_id, fecha, seleccion, modo, cuota, monto, p_justa, resultado, pnl, cuota_cierre, inicio, estrategia from ap_apuestas where modo <> 'historico' order by fecha) a),
- 'cfg', (select row_to_json(c) from ap_config c where id=1)
+ 'cfg', (select row_to_json(c) from ap_config c where id=1),
+ 'push', (select count(*) from ap_push)
 ) as r;
