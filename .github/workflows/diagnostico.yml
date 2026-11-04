@@ -2,9 +2,6 @@ name: Diagnostico
 # Saca un resumen de la base CIFRADO (solo lo puede leer quien tiene la llave privada).
 on:
   workflow_dispatch:
-  push:
-    branches: [main]
-    paths: ["diagnostico/**", ".github/workflows/diagnostico.yml"]
 jobs:
   diag:
     runs-on: ubuntu-latest
@@ -13,9 +10,22 @@ jobs:
       REF: wnwecaapchcfhcljsvli
     steps:
       - uses: actions/checkout@v4
-      - name: Estado del proyecto
+      - name: Resultados de TheOddsAPI (datos publicos de tenis)
         run: |
-          curl -sS --max-time 30 "https://api.supabase.com/v1/projects/$REF" -H "Authorization: Bearer $SUPABASE_ACCESS_TOKEN" | jq '{status, region}'
+          q='{"query":"select valor from ap_privado where clave = '"'"'cron'"'"'"}'
+          C=$(curl -sS -X POST "https://api.supabase.com/v1/projects/$REF/database/query" -H "Authorization: Bearer $SUPABASE_ACCESS_TOKEN" -H "Content-Type: application/json" -d "$q" | jq -r '.[0].valor')
+          echo "::add-mask::$C"
+          curl -sS --max-time 60 -X POST "https://$REF.supabase.co/functions/v1/motor" -H "Content-Type: application/json" -H "x-ap-cron: $C" \
+            -d '{"accion":"diag_scores","sport":"tennis_atp_paris_masters"}' | jq '{http, restantes}, (.muestra|tostring|.[0:5000])'
+      - name: ESPN (respaldo gratis)
+        run: |
+          for t in atp wta; do
+            curl -sS --max-time 30 "https://site.api.espn.com/apis/site/v2/sports/tennis/$t/scoreboard?dates=20261103" > /tmp/e.json
+            echo "== $t bytes $(wc -c < /tmp/e.json)"
+            jq -c '[.events[]? | {name, date, n_group: (.groupings|length)}] | .[0:5]' /tmp/e.json
+            jq -c '[.events[]?.groupings[]? | {g: .grouping.displayName, comps: [.competitions[]? | {d: .date, st: .status.type.name, c: [.competitors[]? | {n: .athlete.displayName, w: .winner}]}][0:3]}] | .[0:3]' /tmp/e.json
+          done
+          curl -sS --max-time 30 "https://site.api.espn.com/apis/site/v2/sports/tennis/atp/scoreboard?dates=20261103" | jq -c '.events[0].groupings[0].competitions[0] | del(.competitors[].linescores) ' | head -c 3000
       - name: Consultar y cifrar
         run: |
           jq -Rs '{query: .}' diagnostico/consulta.sql > /tmp/q.json

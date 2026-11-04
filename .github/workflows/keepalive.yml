@@ -7,6 +7,7 @@ jobs:
   ping:
     runs-on: ubuntu-latest
     steps:
+      - uses: actions/checkout@v4
       - name: Tocar la base
         run: |
           URL=$(grep -o 'SUPABASE_URL: *"[^"]*"' docs/config.js | cut -d'"' -f2)

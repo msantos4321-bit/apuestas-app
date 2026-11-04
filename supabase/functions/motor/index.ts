@@ -400,6 +400,13 @@ Deno.serve(async (req) => {
       if (!sec || sec.valor !== cron) return json({ ok: false, error: "no_autorizado" }, 403);
       if (!key) return json({ ok: false, error: "sin_clave" }, 500);
       const { data: cfg } = await db.from("ap_config").select("*").eq("id", 1).single();
+      if (body.accion === "diag_scores") {
+        const sport = body.sport || "tennis_atp_paris_masters";
+        const ids = (body.ids || []).join(",");
+        const r = await fetch(`${ODDS}/sports/${sport}/scores/?apiKey=${key}&daysFrom=3` + (ids ? `&eventIds=${ids}` : ""));
+        const txt = await r.text();
+        return json({ http: r.status, restantes: r.headers.get("x-requests-remaining"), muestra: txt.slice(0, 6000) });
+      }
       return json(await auto(db, key, cfg));
     }
 
