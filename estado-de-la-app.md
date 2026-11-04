@@ -1,8 +1,9 @@
 # Estado de la app — Apuestas Tenis
 
-**Versión:** 1.3.0 · App: https://msantos4321-bit.github.io/apuestas-app/ · Base y motor: Supabase proyecto "cinecasa" (tablas `ap_*`, función `motor`).
+**Versión:** 1.4.0 · App: https://msantos4321-bit.github.io/apuestas-app/ · Base y motor: Supabase proyecto "cinecasa" (tablas `ap_*`, función `motor`).
 
 ## Qué hace hoy
+- **v1.4.0 (4 nov 2026): Polymarket en papel.** El motor lee gratis la API pública (`gamma-api.polymarket.com/events?series_id=10365|10366&closed=false`, ATP y WTA) cada hora y en cada búsqueda; empareja cada pick por jugadores (±36 h) y guarda en `ap_picks`: `pm_precio` (comprar ya), `pm_bid`, `pm_max` = p_justa/(1+ev_min), `pm_volumen`, `pm_hora`, `pm_primero`. Cuando empieza el partido, `revisarLlenado` usa `clob.polymarket.com/prices-history` para ver si una orden a `pm_max` se habría llenado (`pm_min_pre`, `pm_lleno`; aproximado: algún precio < máximo). La app muestra en cada pick "Polymarket ahora X¢ · compra a Y¢ o menos" y en Sistema/Estrategias el resultado en papel: comprando ya (con comisión 0.05·p·(1−p) por acción) y con orden límite (sin comisión). No apuesta nada.
 - **v1.3.0 (4 nov 2026): resultados con ESPN.** TheOddsAPI no daba resultados del Masters de París (`completed:false`, `scores:null`), así que desde el 1 nov nada se liquidaba. Ahora el motor liquida con el scoreboard público de ESPN (`site.api.espn.com/.../tennis/{atp|wta}/scoreboard?dates=YYYYMMDD`, gratis, sin clave) **cada hora**; TheOddsAPI queda de respaldo. Reintenta picks de hasta 12 días (incluye `sin_dato`). Walkover = anulada (X); retiro = gana quien avanza. Se recuperaron 36 resultados atrasados el 4 nov.
 - **Historial → Sistema**: todos los picks del motor, registrados y liquidados solos (acierto real vs esperado, unidades a la cuota mínima y al precio de Pinnacle). Estrategias → "Sistema completo".
 - Picks muertos: si su torneo se leyó bien y el partido ya no aparece, pasan a `sin_dato` (ESPN igual los liquida si se juegan).
