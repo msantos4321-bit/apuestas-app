@@ -174,6 +174,78 @@ function ganadorDeScores(ev) {
   return s[0].v > s[1].v ? s[0].n : s[1].n;
 }
 
+// ---------- Resultados de ESPN (gratis, sin clave, guarda historial) --------
+// TheOddsAPI solo da 3 dias y fallo con el Masters de Paris; ESPN es el respaldo
+// principal: se consulta cada hora sin gastar creditos.
+
+// "Félix Auger-Aliassime" -> "felix auger aliassime"
+function normNombre(s) {
+  return String(s || "").normalize("NFD").replace(/[̀-ͯ]/g, "").toLowerCase()
+    .replace(/[^a-z ]+/g, " ").replace(/\s+/g, " ").trim();
+}
+
+// Mismo jugador si coincide el nombre completo, o el apellido y la inicial del nombre.
+function mismoJugador(x, y) {
+  const a = normNombre(x), b = normNombre(y);
+  if (!a || !b) return false;
+  if (a === b) return true;
+  const pa = a.split(" "), pb = b.split(" ");
+  const apA = pa.slice(1).join(" "), apB = pb.slice(1).join(" ");
+  if (apA && apA === apB && pa[0][0] === pb[0][0]) return true;
+  // Segundo apellido que una fuente omite ("Daniel Merida Aguilar" vs "Daniel Merida")
+  if (pa.length > 1 && pb.length > 1 && pa[0] === pb[0] && pa[1] === pb[1] && pa[1].length > 3) return true;
+  // Apellidos compuestos o nombres cortados ("Juan Manuel Cerundolo" vs "J. M. Cerundolo")
+  const ultA = pa[pa.length - 1], ultB = pb[pb.length - 1];
+  return ultA === ultB && ultA.length > 3 && pa[0][0] === pb[0][0] && (a.includes(apB) || b.includes(apA));
+}
+
+// Convierte la respuesta del scoreboard de ESPN en partidos de individuales.
+function partidosEspn(js) {
+  const out = [];
+  for (const ev of (js && js.events) || []) {
+    for (const g of ev.groupings || []) {
+      for (const c of g.competitions || []) {
+        const tipo = String((c.type && c.type.text) || (g.grouping && g.grouping.displayName) || "");
+        if (!/singles/i.test(tipo)) continue;
+        const cs = c.competitors || [];
+        if (cs.length !== 2) continue;
+        const nom = cs.map((x) => (x.athlete && (x.athlete.displayName || x.athlete.fullName)) || "");
+        if (!nom[0] || !nom[1]) continue;
+        const st = String((c.status && c.status.type && c.status.type.name) || "");
+        const gan = cs.find((x) => x.winner === true);
+        out.push({ a: nom[0], b: nom[1], ganador: gan ? nom[cs.indexOf(gan)] : null, estado: st, fecha: c.date || c.startDate || null, torneo: ev.name || "" });
+      }
+    }
+  }
+  return out;
+}
+
+// Resultado de un pick con los partidos de ESPN: "W", "L", "X" (anulada) o null (aun no).
+function resolverConEspn(pick, partidos) {
+  const ini = Date.parse(pick.inicio);
+  const cand = partidos.filter((m) =>
+    (mismoJugador(m.a, pick.jugador_a) && mismoJugador(m.b, pick.jugador_b)) ||
+    (mismoJugador(m.a, pick.jugador_b) && mismoJugador(m.b, pick.jugador_a)));
+  if (!cand.length) return null;
+  // El mas cercano a la hora del pick (los mismos jugadores pueden repetirse en otro torneo)
+  cand.sort((x, y) => Math.abs(Date.parse(x.fecha) - ini) - Math.abs(Date.parse(y.fecha) - ini));
+  const m = cand[0];
+  if (m.fecha && Math.abs(Date.parse(m.fecha) - ini) > 5 * 864e5) return null;
+  if (/WALKOVER|CANCEL|ABANDON|FORFEIT/i.test(m.estado)) return { res: "X", fecha: m.fecha, estado: m.estado };
+  if (!/FINAL|RETIRED/i.test(m.estado) || !m.ganador) return null;
+  return { res: mismoJugador(m.ganador, pick.seleccion) ? "W" : "L", fecha: m.fecha, estado: m.estado };
+}
+
+// Dias (YYYYMMDD, UTC) a consultar en ESPN para una lista de picks: el dia del pick y +-1.
+function diasEspn(picks) {
+  const s = new Set();
+  for (const p of picks) {
+    const t = Date.parse(p.inicio);
+    for (const d of [-1, 0, 1]) s.add(new Date(t + d * 864e5).toISOString().slice(0, 10).replace(/-/g, ""));
+  }
+  return [...s].sort();
+}
+
 // ==== HANDLER ===============================================================
 
 import { createClient } from "npm:@supabase/supabase-js@2";
@@ -208,13 +280,60 @@ function diaTijuana() {
   return new Intl.DateTimeFormat("en-CA", { timeZone: "America/Tijuana" }).format(new Date());
 }
 
+// Marca el resultado de un pick y de tus apuestas ligadas a el.
+async function aplicarResultado(db, p, res) {
+  const hora = new Date().toISOString();
+  await db.from("ap_picks").update({ resultado: res, estado: "liquidado", actualizado: hora }).eq("id", p.id);
+  await db.from("ap_apuestas").update({ resultado: res }).eq("pick_id", p.id).is("resultado", null);
+}
+
+// Picks que ya empezaron y no tienen resultado (incluye los "sin dato" de los ultimos 12 dias).
+async function pendientes(db) {
+  const ahora = new Date().toISOString(), hace12 = new Date(Date.now() - 12 * 864e5).toISOString();
+  const { data } = await db.from("ap_picks").select("*").is("resultado", null).lt("inicio", ahora).gt("inicio", hace12)
+    .in("estado", ["activo", "pasado", "sin_dato"]);
+  return data || [];
+}
+
+async function getJsonLibre(url, ms = 15000) {
+  const ctl = new AbortController();
+  const t = setTimeout(() => ctl.abort(), ms);
+  try {
+    const r = await fetch(url, { signal: ctl.signal, headers: { "User-Agent": "Mozilla/5.0 (apuestas-app)" } });
+    if (!r.ok) throw new Error("HTTP " + r.status);
+    return await r.json();
+  } finally { clearTimeout(t); }
+}
+
+// Resultados con ESPN (gratis): se corre cada hora.
+async function liquidarEspn(db) {
+  const pend = await pendientes(db);
+  if (!pend.length) return { liquidados: 0, revisados: 0 };
+  const urls = [];
+  for (const tour of ["atp", "wta"]) for (const d of diasEspn(pend)) urls.push(`https://site.api.espn.com/apis/site/v2/sports/tennis/${tour}/scoreboard?dates=${d}`);
+  let partidos = [], fallas = 0;
+  for (let i = 0; i < urls.length; i += 6) {
+    const lote = await Promise.all(urls.slice(i, i + 6).map((u) => getJsonLibre(u).then(partidosEspn).catch(() => { fallas++; return []; })));
+    for (const x of lote) partidos = partidos.concat(x);
+  }
+  let liquidados = 0;
+  for (const p of pend) {
+    const r = resolverConEspn(p, partidos);
+    if (!r) continue;
+    await aplicarResultado(db, p, r.res);
+    liquidados++;
+  }
+  return { liquidados, revisados: pend.length, partidos_espn: partidos.length, fallas_espn: fallas };
+}
+
+// Resultados: primero ESPN (gratis); lo que falte, con TheOddsAPI /scores (ultimos 3 dias).
 async function liquidar(db, key) {
-  const ahora = new Date().toISOString();
-  const { data: pend } = await db.from("ap_picks").select("*")
-    .is("resultado", null).lt("inicio", ahora).in("estado", ["activo", "pasado"]);
-  let liquidados = 0, restantes = null;
+  const esp = await liquidarEspn(db).catch((e) => ({ liquidados: 0, error: String(e) }));
+  let liquidados = esp.liquidados || 0, restantes = null;
+  const hace3 = new Date(Date.now() - 3 * 864e5).toISOString();
+  const pend = (await pendientes(db)).filter((p) => p.inicio > hace3);
   const porDeporte = {};
-  for (const p of pend || []) (porDeporte[p.sport_key] = porDeporte[p.sport_key] || []).push(p);
+  for (const p of pend) (porDeporte[p.sport_key] = porDeporte[p.sport_key] || []).push(p);
 
   for (const [sport, lista] of Object.entries(porDeporte)) {
     try {
@@ -227,17 +346,15 @@ async function liquidar(db, key) {
         if (!gan) continue;
         const p = lista.find((x) => x.evento_id === ev.id);
         if (!p) continue;
-        const res = gan === p.seleccion ? "W" : "L";
-        await db.from("ap_picks").update({ resultado: res, estado: "liquidado", actualizado: new Date().toISOString() }).eq("id", p.id);
-        await db.from("ap_apuestas").update({ resultado: res }).eq("pick_id", p.id).is("resultado", null);
+        await aplicarResultado(db, p, gan === p.seleccion ? "W" : "L");
         liquidados++;
       }
     } catch (_e) { /* un deporte que falla no detiene a los demas */ }
   }
-  // Picks viejos sin resultado: ya no hay forma gratis de saberlo (limite de 3 dias de TheOddsAPI)
-  const hace4d = new Date(Date.now() - 4 * 24 * 3600 * 1000).toISOString();
-  await db.from("ap_picks").update({ estado: "sin_dato" }).is("resultado", null).lt("inicio", hace4d).in("estado", ["activo", "pasado"]);
-  return { liquidados, restantes };
+  // Despues de 12 dias sin resultado en ninguna fuente, se da por perdido el dato.
+  const hace12 = new Date(Date.now() - 12 * 864e5).toISOString();
+  await db.from("ap_picks").update({ estado: "sin_dato" }).is("resultado", null).lt("inicio", hace12).in("estado", ["activo", "pasado"]);
+  return { liquidados, restantes, espn: esp };
 }
 
 // Guarda el ultimo precio de Pinnacle visto ANTES de empezar (cuota de cierre aproximada).
@@ -275,12 +392,24 @@ async function buscar(db, key, cfg, auto = false) {
   const activos = (deportes || []).filter((s) => String(s.group).toLowerCase() === "tennis" && s.active && !s.has_outrights).map((s) => s.key);
 
   let eventos = [], restantes = lis.restantes;
+  const leidos = [];
   for (const sk of activos) {
     try {
       const { data, restantes: rest } = await getJson(`${ODDS}/sports/${sk}/odds/?apiKey=${key}&regions=eu&markets=h2h&oddsFormat=decimal&dateFormat=iso`);
       if (rest !== null) restantes = rest;
       eventos = eventos.concat(data || []);
+      leidos.push(sk);
     } catch (_e) { /* sigue con el siguiente torneo */ }
+  }
+  // Picks muertos: su torneo se leyo bien pero el partido ya no esta (baja, walkover, cambio de rival).
+  // Quedan "sin_dato": no se muestran como activos; si el partido si se juega, ESPN igual lo liquida.
+  let muertos = 0;
+  if (leidos.length) {
+    const vivos = new Set(eventos.map((e) => e.id));
+    const { data: futuros } = await db.from("ap_picks").select("id, evento_id").eq("estado", "activo")
+      .in("sport_key", leidos).gt("inicio", new Date(Date.now() + 30 * 60 * 1000).toISOString());
+    const quitar = (futuros || []).filter((p) => !vivos.has(p.evento_id)).map((p) => p.id);
+    if (quitar.length) { await db.from("ap_picks").update({ estado: "sin_dato", actualizado: new Date().toISOString() }).in("id", quitar); muertos = quitar.length; }
   }
 
   const picks = construirPicks(eventos, cfg, Date.now());
@@ -298,7 +427,7 @@ async function buscar(db, key, cfg, auto = false) {
 
   return {
     ok: true, torneos: activos.length, partidos: eventos.length, picks: picks.length,
-    liquidados: lis.liquidados, creditos_restantes: restantes, busquedas_hoy: hechas + (auto ? 0 : 1), cierres,
+    liquidados: lis.liquidados, creditos_restantes: restantes, busquedas_hoy: hechas + (auto ? 0 : 1), cierres, muertos,
   };
 }
 
@@ -361,7 +490,11 @@ async function avisar(db, silencioso) {
 // Reloj de la base: cada hora; solo actua a las HORAS_AUTO de Tijuana, una vez por hora.
 async function auto(db, key, cfg) {
   const h = horaTijuana(Date.now());
-  if (!HORAS_AUTO.includes(h)) return { ok: true, nada: "fuera de horario", hora: h };
+  if (!HORAS_AUTO.includes(h)) {
+    // Fuera de horario: solo resultados con ESPN (gratis). Los avisos se mandan a las 8 a.m. y 9 p.m.
+    const esp = await liquidarEspn(db).catch((e) => ({ error: String(e) }));
+    return { ok: true, solo_resultados: true, hora: h, ...esp };
+  }
   const dia = diaTijuana();
   const { data: uso } = await db.from("ap_uso").select("*").eq("dia", dia).maybeSingle();
   const hechas = String((uso && uso.auto_horas) || "").split(",").filter(Boolean);
@@ -400,6 +533,11 @@ Deno.serve(async (req) => {
       if (!sec || sec.valor !== cron) return json({ ok: false, error: "no_autorizado" }, 403);
       if (!key) return json({ ok: false, error: "sin_clave" }, 500);
       const { data: cfg } = await db.from("ap_config").select("*").eq("id", 1).single();
+      if (body.accion === "liquidar") {
+        const r = await liquidar(db, key);
+        r.avisos = await avisar(db, body.silencioso === true);
+        return json({ ok: true, ...r });
+      }
       if (body.accion === "diag_scores") {
         const sport = body.sport || "tennis_atp_paris_masters";
         const ids = (body.ids || []).join(",");
@@ -424,7 +562,7 @@ Deno.serve(async (req) => {
 
     if (accion === "estado") {
       const { data: uso } = await db.from("ap_uso").select("*").eq("dia", diaTijuana()).maybeSingle();
-      return json({ ok: true, version: "1.1", key_configurada: !!key, busquedas_hoy: uso ? uso.busquedas : 0, creditos_restantes: uso ? uso.creditos_restantes : null });
+      return json({ ok: true, version: "1.3", key_configurada: !!key, busquedas_hoy: uso ? uso.busquedas : 0, creditos_restantes: uso ? uso.creditos_restantes : null });
     }
     if (accion === "vapid") return json({ ok: true, publica: (await llavesVapid(db)).pub });
     if (accion === "prueba") {

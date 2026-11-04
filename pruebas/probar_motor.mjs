@@ -7,7 +7,7 @@ import { fileURLToPath } from "node:url";
 const dir = path.dirname(fileURLToPath(import.meta.url));
 const src = fs.readFileSync(path.join(dir, "..", "supabase", "functions", "motor", "index.ts"), "utf8");
 const core = src.split("\n// ==== HANDLER")[0] +
-  "\nexport { shin, probReferencia, construirPicks, ganadorDeScores, inferirNivel, inferirSuperficie, pinnacleDe, horaTijuana };\n";
+  "\nexport { shin, probReferencia, construirPicks, ganadorDeScores, inferirNivel, inferirSuperficie, pinnacleDe, horaTijuana, normNombre, mismoJugador, partidosEspn, resolverConEspn, diasEspn };\n";
 const tmp = path.join(dir, "_core_tmp.mjs");
 fs.writeFileSync(tmp, core);
 const m = await import("file://" + tmp.replace(/\\/g, "/"));
@@ -70,6 +70,31 @@ ok(m.ganadorDeScores({ completed: true, scores: [{ name: "Ana", score: "1" }, { 
   ok(m.horaTijuana(Date.parse("2026-12-01T16:05:00Z")) === 8, "16:05 UTC = 8 a.m. Tijuana (invierno)");
 }
 
+// 8) Resultados con ESPN
+{
+  ok(m.mismoJugador("Félix Auger-Aliassime", "Felix Auger Aliassime"), "acentos y guiones");
+  ok(m.mismoJugador("Daniel Merida Aguilar", "Daniel Merida"), "segundo apellido omitido");
+  ok(!m.mismoJugador("Juan Manuel Cerundolo", "Francisco Cerundolo"), "hermanos Cerundolo distintos");
+  ok(!m.mismoJugador("Alexander Zverev", "Mischa Zverev"), "hermanos Zverev distintos");
+  const comp = (d, st, a, wa, b, wb, tipo = "Men's Singles") => ({ date: d, type: { text: tipo }, status: { type: { name: st } },
+    competitors: [{ winner: wa, athlete: { displayName: a } }, { winner: wb, athlete: { displayName: b } }] });
+  const js = { events: [{ name: "Rolex Paris Masters", groupings: [{ grouping: { displayName: "Men's Singles" }, competitions: [
+    comp("2026-11-03T10:05Z", "STATUS_FINAL", "Andrey Rublev", true, "Tomas Martin Etcheverry", false),
+    comp("2026-11-03T12:00Z", "STATUS_RETIRED", "Tommy Paul", false, "Holger Rune", true),
+    comp("2026-11-03T14:00Z", "STATUS_WALKOVER", "Jiri Lehecka", true, "Alex Michelsen", false),
+    comp("2026-11-04T14:00Z", "STATUS_SCHEDULED", "Taylor Fritz", false, "Alex Molcan", false),
+  ] }, { grouping: { displayName: "Men's Doubles" }, competitions: [comp("2026-11-03T10:00Z", "STATUS_FINAL", "", true, "", false, "Men's Doubles")] }] }] };
+  const ps = m.partidosEspn(js);
+  ok(ps.length === 4, "solo individuales (" + ps.length + ")");
+  const pk = (a, b, sel, ini) => ({ jugador_a: a, jugador_b: b, seleccion: sel, inicio: ini });
+  ok(m.resolverConEspn(pk("Andrey Rublev", "Tomas Martin Etcheverry", "Andrey Rublev", "2026-11-03T10:00:00Z"), ps).res === "W", "gano Rublev");
+  ok(m.resolverConEspn(pk("Holger Rune", "Tommy Paul", "Tommy Paul", "2026-11-03T12:20:00Z"), ps).res === "L", "retiro: perdio Paul (orden invertido)");
+  ok(m.resolverConEspn(pk("Jiri Lehecka", "Alex Michelsen", "Jiri Lehecka", "2026-11-03T14:00:00Z"), ps).res === "X", "walkover = anulada");
+  ok(m.resolverConEspn(pk("Taylor Fritz", "Alex Molcan", "Taylor Fritz", "2026-11-04T13:50:00Z"), ps) === null, "no terminado = esperar");
+  ok(m.resolverConEspn(pk("Andrey Rublev", "Tomas Martin Etcheverry", "Andrey Rublev", "2026-10-20T10:00:00Z"), ps) === null, "otra fecha lejana no cuenta");
+  ok(m.resolverConEspn(pk("Novak Djokovic", "Valentin Vacherot", "Novak Djokovic", "2026-11-03T09:00:00Z"), ps) === null, "partido no encontrado");
+  ok(m.diasEspn([{ inicio: "2026-11-03T10:00:00Z" }]).join(",") === "20261102,20261103,20261104", "dias a consultar");
+}
 
 console.log(fallos === 0 ? "\nTODO OK" : "\nHAY " + fallos + " FALLO(S)");
 process.exit(fallos ? 1 : 0);
